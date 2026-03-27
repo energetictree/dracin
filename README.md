@@ -21,9 +21,13 @@ A retro-styled drama streaming web application with a unique terminal/desktop in
 ![Mobile Interface](./screenshots/mobile-app.png)
 *Responsive mobile design with touch-friendly controls*
 
-### Terminal Commands
-![Terminal](./screenshots/terminal-app.png)
+### Terminal Commands (Desktop)
+![Terminal Desktop](./screenshots/terminal-app.png)
 *Interactive terminal with various commands*
+
+### Terminal Commands (Mobile)
+![Terminal Mobile](./screenshots/mobile-terminal.png)
+*Mobile terminal interface*
 
 ## ✨ Features
 
