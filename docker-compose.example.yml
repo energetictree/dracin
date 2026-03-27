@@ -20,6 +20,8 @@ services:
       - PRIMARY_API_URL=${PRIMARY_API_URL:-https://api.primary.url}
       # Backup API (Secondary/Failover)
       - BACKUP_API_URL=${BACKUP_API_URL:-https://api.backup.url}
+      # Access Password (change this!)
+      - ACCESS_PASSWORD=${ACCESS_PASSWORD:-dracin123}
       # Service Description
       - DESCRIPTION=${DESCRIPTION:-Dracin API Proxy with Primary/Backup failover}
     volumes:
@@ -53,6 +55,7 @@ services:
       - NODE_ENV=development
       - CHOKIDAR_USEPOLLING=true  # Enable polling for file changes in Docker
       - VITE_API_PROXY_URL=http://dracin-proxy:3001  # Proxy URL (vite rewrite adds /api)
+      - VITE_ACCESS_PASSWORD=${ACCESS_PASSWORD:-dracin123}
     working_dir: /app
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
     stdin_open: true
@@ -79,6 +82,7 @@ services:
     environment:
       - NODE_ENV=production
       - VITE_API_PROXY_URL=http://dracin-proxy:3001  # vite rewrite adds /api
+      - VITE_ACCESS_PASSWORD=${ACCESS_PASSWORD:-dracin123}
     working_dir: /app
     command: ["sh", "-c", "npm ci && npm run build && npm run preview -- --host 0.0.0.0"]
     networks:

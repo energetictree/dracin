@@ -9,6 +9,10 @@ A retro-styled drama streaming web application with a unique terminal/desktop in
 
 ## 📸 Screenshots
 
+### Boot Screen
+![Boot Screen](./screenshots/boot.png)
+*Retro BIOS-style boot sequence with password login*
+
 ### Desktop Interface
 ![Desktop Interface](./screenshots/desktop.png)
 *Retro desktop environment with draggable windows*
@@ -201,6 +205,7 @@ docker-compose logs -f
 | `PUBLIC_URL` | Public URL | No | `https://your-domain.com` |
 | `PRIMARY_API_URL` | Main API endpoint | **Yes** | `https://api.primary.url` |
 | `BACKUP_API_URL` | Failover API | No | `https://api.backup.url` |
+| `ACCESS_PASSWORD` | Login password | No | `yourpassword123` |
 
 **Note:** You must provide your own API endpoints. The application will not work without valid API URLs.
 
