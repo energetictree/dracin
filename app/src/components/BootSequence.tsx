@@ -101,7 +101,7 @@ function DesktopBootSequence({ onLogin }: BootSequenceProps) {
     return () => clearInterval(cursorInterval);
   }, []);
 
-  // Auto-scroll to bottom when new lines are added
+  // Auto-scroll to bottom during boot sequence
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -147,8 +147,12 @@ function DesktopBootSequence({ onLogin }: BootSequenceProps) {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-8 crt-screen">
-      <div ref={containerRef} className="w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 crt-screen">
+      {/* Boot sequence text - fades out when login appears */}
+      <div 
+        ref={containerRef} 
+        className={`w-full max-w-4xl max-h-[80vh] overflow-y-auto transition-opacity duration-500 ${bootComplete ? 'opacity-20 blur-sm' : 'opacity-100'}`}
+      >
         <pre className="text-green-400 font-mono text-sm md:text-base leading-relaxed">
           {lines.map((line, index) => (
             <div key={index} className={`
@@ -163,117 +167,98 @@ function DesktopBootSequence({ onLogin }: BootSequenceProps) {
             </div>
           ))}
           
-          {/* Blank lines to push login to middle */}
-          {bootComplete && (
-            <>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-            </>
-          )}
-          
-          {/* Login Prompts - Pure text, no boxes */}
-          {bootComplete && loginStep === 'username' && (
-            <div className="mt-4">
-              <div className="text-yellow-400">{'>'} ENTER USERNAME:</div>
-              <div className="flex items-center mt-2">
-                <span className="text-green-400 mr-2">{'>'}</span>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && username.trim()) {
-                      setLoginStep('password');
-                      setError('');
-                    }
-                  }}
-                  className="bg-transparent border-0 border-b border-green-400/30 outline-none text-green-400 font-mono text-sm md:text-base flex-1 p-0 m-0 rounded-none shadow-none focus:border-green-400 focus:ring-0"
-                  style={{ 
-                    background: 'transparent',
-                    boxShadow: 'none',
-                    WebkitAppearance: 'none',
-                    appearance: 'none'
-                  }}
-                  autoFocus
-                />
-                <span className={`inline-block w-3 h-5 bg-green-400 ml-1 ${showCursor ? 'opacity-100' : 'opacity-0'}`} />
-              </div>
-            </div>
-          )}
-          
-          {bootComplete && loginStep === 'password' && (
-            <div className="mt-4">
-              <div className="text-yellow-400">{'>'} ENTER PASSWORD:</div>
-              <div className="flex items-center mt-2">
-                <span className="text-green-400 mr-2">{'>'}</span>
-                <input
-                  ref={inputRef}
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handlePasswordSubmit();
-                    }
-                  }}
-                  className="bg-transparent border-0 border-b border-green-400/30 outline-none text-green-400 font-mono text-sm md:text-base flex-1 p-0 m-0 rounded-none shadow-none focus:border-green-400 focus:ring-0"
-                  style={{ 
-                    background: 'transparent',
-                    boxShadow: 'none',
-                    WebkitAppearance: 'none',
-                    appearance: 'none'
-                  }}
-                  autoFocus
-                />
-                <span className={`inline-block w-3 h-5 bg-green-400 ml-1 ${showCursor ? 'opacity-100' : 'opacity-0'}`} />
-              </div>
-            </div>
-          )}
-          
-          {error && (
-            <div className="mt-4 text-red-500 font-bold">
-              {error}
-            </div>
-          )}
-          
           <div ref={scrollRef} />
-        </pre>
-        
-        {/* Progress Bar */}
-        {!bootComplete && (
-          <div className="mt-8 flex items-center gap-4">
-            <span className="text-green-600 text-sm">LOADING:</span>
-            <div className="flex-1 h-6 border-2 border-green-600 p-1">
-              <div 
-                className="h-full bg-green-500 transition-all duration-100"
-                style={{ width: `${(currentLine / bootLines.length) * 100}%` }}
-              />
+          
+          {/* Progress Bar */}
+          {!bootComplete && (
+            <div className="mt-8 flex items-center gap-4">
+              <span className="text-green-600 text-sm">LOADING:</span>
+              <div className="flex-1 h-6 border-2 border-green-600 p-1">
+                <div 
+                  className="h-full bg-green-500 transition-all duration-100"
+                  style={{ width: `${(currentLine / bootLines.length) * 100}%` }}
+                />
+              </div>
+              <span className="text-green-400 text-sm w-12 text-right">
+                {Math.round((currentLine / bootLines.length) * 100)}%
+              </span>
             </div>
-            <span className="text-green-400 text-sm w-12 text-right">
-              {Math.round((currentLine / bootLines.length) * 100)}%
-            </span>
-          </div>
-        )}
+          )}
+        </pre>
       </div>
+      
+      {/* Login Form - Centered in screen */}
+      {bootComplete && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="w-full max-w-md px-8">
+            {/* Login Prompts - Pure text, no boxes */}
+            {loginStep === 'username' && (
+              <div>
+                <div className="text-yellow-400 font-mono text-sm md:text-base">{'>'} ENTER USERNAME:</div>
+                <div className="flex items-center mt-2">
+                  <span className="text-green-400 mr-2 font-mono text-sm md:text-base">{'>'}</span>
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && username.trim()) {
+                        setLoginStep('password');
+                        setError('');
+                      }
+                    }}
+                    className="bg-transparent border-0 border-b border-green-400/30 outline-none text-green-400 font-mono text-sm md:text-base flex-1 p-0 m-0 rounded-none shadow-none focus:border-green-400 focus:ring-0"
+                    style={{ 
+                      background: 'transparent',
+                      boxShadow: 'none',
+                      WebkitAppearance: 'none',
+                      appearance: 'none'
+                    }}
+                    autoFocus
+                  />
+                  <span className={`inline-block w-3 h-5 bg-green-400 ml-1 ${showCursor ? 'opacity-100' : 'opacity-0'}`} />
+                </div>
+              </div>
+            )}
+            
+            {loginStep === 'password' && (
+              <div>
+                <div className="text-yellow-400 font-mono text-sm md:text-base">{'>'} ENTER PASSWORD:</div>
+                <div className="flex items-center mt-2">
+                  <span className="text-green-400 mr-2 font-mono text-sm md:text-base">{'>'}</span>
+                  <input
+                    ref={inputRef}
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handlePasswordSubmit();
+                      }
+                    }}
+                    className="bg-transparent border-0 border-b border-green-400/30 outline-none text-green-400 font-mono text-sm md:text-base flex-1 p-0 m-0 rounded-none shadow-none focus:border-green-400 focus:ring-0"
+                    style={{ 
+                      background: 'transparent',
+                      boxShadow: 'none',
+                      WebkitAppearance: 'none',
+                      appearance: 'none'
+                    }}
+                    autoFocus
+                  />
+                  <span className={`inline-block w-3 h-5 bg-green-400 ml-1 ${showCursor ? 'opacity-100' : 'opacity-0'}`} />
+                </div>
+              </div>
+            )}
+            
+            {error && (
+              <div className="mt-4 text-red-500 font-bold font-mono text-sm md:text-base">
+                {error}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -357,7 +342,7 @@ function MobileBootSequence({ onLogin }: BootSequenceProps) {
     return () => clearInterval(cursorInterval);
   }, []);
 
-  // Auto-scroll to bottom when new lines are added
+  // Auto-scroll to bottom during boot sequence
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -403,8 +388,11 @@ function MobileBootSequence({ onLogin }: BootSequenceProps) {
 
   return (
     <div className="min-h-screen bg-black flex flex-col p-4 crt-screen overflow-hidden">
-      {/* Full scrolling boot log */}
-      <div ref={containerRef} className="flex-1 w-full max-w-md mx-auto overflow-y-auto font-mono text-xs">
+      {/* Boot sequence text - fades out when login appears */}
+      <div 
+        ref={containerRef} 
+        className={`flex-1 w-full max-w-md mx-auto overflow-y-auto font-mono text-xs transition-opacity duration-500 ${bootComplete ? 'opacity-20 blur-sm' : 'opacity-100'}`}
+      >
         <pre className="text-green-400 leading-relaxed whitespace-pre-wrap">
           {lines.map((line, index) => (
             <div key={index} className={`
@@ -418,97 +406,83 @@ function MobileBootSequence({ onLogin }: BootSequenceProps) {
             </div>
           ))}
           
-          {/* Blank lines to push login to middle */}
-          {bootComplete && (
-            <>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-              <div>{' '}</div>
-            </>
-          )}
-          
-          {/* Login Prompts - Pure text, no boxes */}
-          {bootComplete && loginStep === 'username' && (
-            <div className="mt-4">
-              <div className="text-yellow-400 text-xs">{'>'} USERNAME:</div>
-              <div className="flex items-center mt-1">
-                <span className="text-green-400 mr-1 text-xs">{'>'}</span>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && username.trim()) {
-                      setLoginStep('password');
-                      setError('');
-                    }
-                  }}
-                  className="bg-transparent border-0 border-b border-green-400/30 outline-none text-green-400 font-mono text-xs flex-1 p-0 m-0 rounded-none shadow-none focus:border-green-400 focus:ring-0"
-                  style={{ 
-                    background: 'transparent',
-                    boxShadow: 'none',
-                    WebkitAppearance: 'none',
-                    appearance: 'none'
-                  }}
-                  autoFocus
-                />
-                <span className={`inline-block w-2 h-4 bg-green-400 ml-1 ${showCursor ? 'opacity-100' : 'opacity-0'}`} />
-              </div>
-            </div>
-          )}
-          
-          {bootComplete && loginStep === 'password' && (
-            <div className="mt-4">
-              <div className="text-yellow-400 text-xs">{'>'} PASSWORD:</div>
-              <div className="flex items-center mt-1">
-                <span className="text-green-400 mr-1 text-xs">{'>'}</span>
-                <input
-                  ref={inputRef}
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handlePasswordSubmit();
-                    }
-                  }}
-                  className="bg-transparent border-0 border-b border-green-400/30 outline-none text-green-400 font-mono text-xs flex-1 p-0 m-0 rounded-none shadow-none focus:border-green-400 focus:ring-0"
-                  style={{ 
-                    background: 'transparent',
-                    boxShadow: 'none',
-                    WebkitAppearance: 'none',
-                    appearance: 'none'
-                  }}
-                  autoFocus
-                />
-                <span className={`inline-block w-2 h-4 bg-green-400 ml-1 ${showCursor ? 'opacity-100' : 'opacity-0'}`} />
-              </div>
-            </div>
-          )}
-          
-          {error && (
-            <div className="mt-4 text-red-500 font-bold text-xs">
-              {error}
-            </div>
-          )}
-          
           <div ref={scrollRef} />
         </pre>
       </div>
-
+      
+      {/* Login Form - Centered in screen */}
+      {bootComplete && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="w-full max-w-xs px-4">
+            {/* Login Prompts - Pure text, no boxes */}
+            {loginStep === 'username' && (
+              <div>
+                <div className="text-yellow-400 font-mono text-xs">{'>'} USERNAME:</div>
+                <div className="flex items-center mt-1">
+                  <span className="text-green-400 mr-1 font-mono text-xs">{'>'}</span>
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && username.trim()) {
+                        setLoginStep('password');
+                        setError('');
+                      }
+                    }}
+                    className="bg-transparent border-0 border-b border-green-400/30 outline-none text-green-400 font-mono text-xs flex-1 p-0 m-0 rounded-none shadow-none focus:border-green-400 focus:ring-0"
+                    style={{ 
+                      background: 'transparent',
+                      boxShadow: 'none',
+                      WebkitAppearance: 'none',
+                      appearance: 'none'
+                    }}
+                    autoFocus
+                  />
+                  <span className={`inline-block w-2 h-4 bg-green-400 ml-1 ${showCursor ? 'opacity-100' : 'opacity-0'}`} />
+                </div>
+              </div>
+            )}
+            
+            {loginStep === 'password' && (
+              <div>
+                <div className="text-yellow-400 font-mono text-xs">{'>'} PASSWORD:</div>
+                <div className="flex items-center mt-1">
+                  <span className="text-green-400 mr-1 font-mono text-xs">{'>'}</span>
+                  <input
+                    ref={inputRef}
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handlePasswordSubmit();
+                      }
+                    }}
+                    className="bg-transparent border-0 border-b border-green-400/30 outline-none text-green-400 font-mono text-xs flex-1 p-0 m-0 rounded-none shadow-none focus:border-green-400 focus:ring-0"
+                    style={{ 
+                      background: 'transparent',
+                      boxShadow: 'none',
+                      WebkitAppearance: 'none',
+                      appearance: 'none'
+                    }}
+                    autoFocus
+                  />
+                  <span className={`inline-block w-2 h-4 bg-green-400 ml-1 ${showCursor ? 'opacity-100' : 'opacity-0'}`} />
+                </div>
+              </div>
+            )}
+            
+            {error && (
+              <div className="mt-4 text-red-500 font-bold font-mono text-xs">
+                {error}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
       {/* Progress Bar at bottom */}
       {!bootComplete && (
         <div className="mt-4 flex items-center gap-3 pb-4">
