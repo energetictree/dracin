@@ -78,23 +78,6 @@ function DesktopBootSequence({ onLogin }: BootSequenceProps) {
     'System initialization complete.',
     '',
     'SECURITY LOGIN REQUIRED',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
     ''
   ];
 
@@ -179,6 +162,32 @@ function DesktopBootSequence({ onLogin }: BootSequenceProps) {
               {line || ' '}
             </div>
           ))}
+          
+          {/* Blank lines to push login to middle */}
+          {bootComplete && (
+            <>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+            </>
+          )}
           
           {/* Login Prompts - Pure text, no boxes */}
           {bootComplete && loginStep === 'username' && (
@@ -325,23 +334,6 @@ function MobileBootSequence({ onLogin }: BootSequenceProps) {
     'System ready.',
     '',
     'SECURITY LOGIN REQUIRED',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
     ''
   ];
 
@@ -425,6 +417,27 @@ function MobileBootSequence({ onLogin }: BootSequenceProps) {
               {line || ' '}
             </div>
           ))}
+          
+          {/* Blank lines to push login to middle */}
+          {bootComplete && (
+            <>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+              <div>{' '}</div>
+            </>
+          )}
           
           {/* Login Prompts - Pure text, no boxes */}
           {bootComplete && loginStep === 'username' && (
