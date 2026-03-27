@@ -10,27 +10,27 @@ A retro-styled drama streaming web application with a unique terminal/desktop in
 ## 📸 Screenshots
 
 ### Boot Screen
-![Boot Screen](./screenshots/boot.png)
+![Boot Screen](./screenshots/boot-screen.png)
 *Retro BIOS-style boot sequence with password login*
 
 ### Desktop Interface
-![Desktop Interface](./screenshots/desktop.png)
+![Desktop Interface](./screenshots/desktop-app.png)
 *Retro desktop environment with draggable windows*
 
 ### Video Player
-![Video Player](./screenshots/player.png)
+![Video Player](./screenshots/player-app.png)
 *Built-in video player with auto-play next episode*
 
 ### Mobile Interface
-![Mobile Interface](./screenshots/mobile.png)
+![Mobile Interface](./screenshots/mobile-app.png)
 *Responsive mobile design with touch-friendly controls*
 
 ### Terminal Commands
-![Terminal](./screenshots/terminal.png)
+![Terminal](./screenshots/terminal-app.png)
 *Interactive terminal with various commands*
 
 ### History View
-![History](./screenshots/history.png)
+![History](./screenshots/history-app.png)
 *Watch history with resume and remove options*
 
 ## ✨ Features
