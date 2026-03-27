@@ -17,11 +17,9 @@ services:
       - DOMAIN=${DOMAIN:-localhost}
       - PUBLIC_URL=${PUBLIC_URL:-http://localhost:3001}
       # Primary API (Main API Document)
-      - PRIMARY_API_URL=${PRIMARY_API_URL:-https://api.sansekai.my.id/api/dramabox}
+      - PRIMARY_API_URL=${PRIMARY_API_URL:-https://api.primary.url}
       # Backup API (Secondary/Failover)
-      - BACKUP_API_URL=${BACKUP_API_URL:-https://apihub.bzbeez.work/api/dramabox}
-      # Current API (defaults to primary)
-      - API_URL=${API_URL:-https://api.sansekai.my.id/api/dramabox}
+      - BACKUP_API_URL=${BACKUP_API_URL:-https://api.backup.url}
       # Service Description
       - DESCRIPTION=${DESCRIPTION:-Dracin API Proxy with Primary/Backup failover}
     volumes:

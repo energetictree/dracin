@@ -15,8 +15,15 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // API Configuration - Primary and Backup
-const PRIMARY_API = process.env.PRIMARY_API_URL || 'https://api.sansekai.my.id/api/dramabox';
-const BACKUP_API = process.env.BACKUP_API_URL || 'https://apihub.bzbeez.work/api/dramabox';
+const PRIMARY_API = process.env.PRIMARY_API_URL;
+const BACKUP_API = process.env.BACKUP_API_URL;
+
+// Validate configuration
+if (!PRIMARY_API) {
+  console.error('ERROR: PRIMARY_API_URL environment variable is required');
+  console.error('Please set it in your .env file or environment');
+  process.exit(1);
+}
 
 // Domain configuration
 const DOMAIN = process.env.DOMAIN || 'localhost';

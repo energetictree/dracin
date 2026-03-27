@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# Docker compose with real values (use example file instead)
+docker-compose.yml
+
 # Dependencies
 node_modules/
 .pnp
@@ -50,3 +53,8 @@ coverage/
 *.pid
 *.seed
 *.pid.lock
+
+# Screenshot script (development only)
+take-screenshots.js
+package.json
+package-lock.json

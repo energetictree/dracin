@@ -25,6 +25,10 @@ A retro-styled drama streaming web application with a unique terminal/desktop in
 ![Terminal](./screenshots/terminal.png)
 *Interactive terminal with various commands*
 
+### History View
+![History](./screenshots/history.png)
+*Watch history with resume and remove options*
+
 ## ✨ Features
 
 ### 🖥️ Desktop Experience
@@ -85,11 +89,6 @@ A retro-styled drama streaming web application with a unique terminal/desktop in
 - **IndexedDB** - Client-side caching via idb-keyval
 - **NodeCache** - Server-side caching (3-hour TTL)
 
-### API Integration
-- **Primary API**: Sansekai Dramabox API
-- **Backup API**: Failover API for reliability
-- **Decryption Proxy**: Automatic stream decryption
-
 ## 📁 Project Structure
 
 ```
@@ -113,8 +112,9 @@ dracin/
 │   └── ...
 ├── proxy/                  # Backend proxy server
 │   └── server.js          # Express server with caching
-├── .env.example           # Environment template
-├── docker-compose.yml     # Docker setup
+├── .env.example           # Environment template (copy to .env)
+├── docker-compose.example.yml  # Docker compose template
+├── docker-compose.yml     # Docker setup (local use only, not in git)
 └── README.md             # This file
 ```
 
@@ -124,6 +124,7 @@ dracin/
 - Node.js 18+
 - npm or yarn
 - Git
+- Your own API endpoints (Primary and optionally Backup)
 
 ### Installation
 
@@ -136,10 +137,23 @@ dracin/
 2. **Setup environment variables**
    ```bash
    cp .env.example .env
-   # Edit .env with your configuration
+   # Edit .env with your own API URLs
    ```
 
-3. **Install dependencies**
+3. **Configure your API endpoints**
+   
+   Edit `.env` file:
+   ```env
+   # Your domain
+   DOMAIN=your-domain.com
+   PUBLIC_URL=https://your-domain.com
+   
+   # Your API endpoints (required)
+   PRIMARY_API_URL=https://your-primary-api.com/api/dramabox
+   BACKUP_API_URL=https://your-backup-api.com/api/dramabox
+   ```
+
+4. **Install dependencies**
    ```bash
    # Install proxy dependencies
    cd proxy && npm install
@@ -148,7 +162,7 @@ dracin/
    cd ../app && npm install
    ```
 
-4. **Start development servers**
+5. **Start development servers**
    ```bash
    # Start proxy (from proxy/)
    npm run dev
@@ -158,13 +172,18 @@ dracin/
    npm run dev
    ```
 
-5. **Open in browser**
+6. **Open in browser**
    - Frontend: http://localhost:5173
    - Proxy: http://localhost:3001
 
 ### Docker Deployment
 
 ```bash
+# Copy example file
+cp docker-compose.example.yml docker-compose.yml
+
+# Edit docker-compose.yml with your environment variables
+
 # Build and start all services
 docker-compose up -d
 
@@ -176,19 +195,21 @@ docker-compose logs -f
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DOMAIN` | Your domain | `localhost` |
-| `PUBLIC_URL` | Public URL | `http://localhost:3002` |
-| `PRIMARY_API_URL` | Main API endpoint | `https://api.sansekai.my.id/api/dramabox` |
-| `BACKUP_API_URL` | Failover API | `https://apihub.bzbeez.work/api/dramabox` |
-| `API_URL` | Current active API | Same as PRIMARY_API_URL |
+| Variable | Description | Required | Example |
+|----------|-------------|----------|---------|
+| `DOMAIN` | Your domain | No | `your-domain.com` |
+| `PUBLIC_URL` | Public URL | No | `https://your-domain.com` |
+| `PRIMARY_API_URL` | Main API endpoint | **Yes** | `https://api.primary.url` |
+| `BACKUP_API_URL` | Failover API | No | `https://api.backup.url` |
+
+**Note:** You must provide your own API endpoints. The application will not work without valid API URLs.
 
 ## 🔒 Security Notes
 
-- Never commit `.env` files containing real credentials
-- API keys and sensitive URLs should be kept private
-- The proxy server handles API authentication securely
+- **Never commit `.env` files** - They contain sensitive API URLs
+- **Use placeholder URLs in examples** - Real URLs should only be in your local `.env`
+- **The proxy server validates** - It will refuse to start without PRIMARY_API_URL
+- **Backup API is optional** - But recommended for failover
 
 ## 🤝 Contributing
 
@@ -200,7 +221,6 @@ This project is licensed under the MIT License.
 
 ## 🙏 Credits
 
-- **Powered by**: [Sansekai API](https://api.sansekai.my.id)
 - **Author**: Eligible Enterprise
 - **Build**: 2026.02.03
 
