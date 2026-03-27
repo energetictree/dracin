@@ -1,9 +1,9 @@
 // Authentication configuration
 // Password can be set via VITE_ACCESS_PASSWORD environment variable
-// Default is 'dracin123' if not set
+// Falls back to 'marimakan' if not set
 
 export const AUTH_CONFIG = {
-  PASSWORD: import.meta.env.VITE_ACCESS_PASSWORD || 'dracin123',
+  PASSWORD: import.meta.env.VITE_ACCESS_PASSWORD || 'marimakan',
   SESSION_DURATION_DAYS: 7,
   STORAGE_KEY: 'dracin_session',
 } as const;
