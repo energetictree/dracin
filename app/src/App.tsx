@@ -866,7 +866,7 @@ function MobileWindowContent({
             <p className="text-center text-xs mt-2">Start watching dramas to see them here.</p>
           </div>
         ) : (
-          <div className="flex-1 overflow-auto p-3 pb-24 space-y-3">
+          <div className="flex-1 overflow-auto p-3 pb-8 space-y-3">
             {history.map((item) => (
               <div
                 key={item.bookId}
@@ -1011,7 +1011,7 @@ function MobileWindowContent({
         ) : error ? (
           <div className="text-red-500 text-center py-8">{error}</div>
         ) : dramas.length > 0 ? (
-          <div className="space-y-3 pb-24">
+          <div className="space-y-3 pb-8">
             <p className="text-green-600 text-sm mb-2">Found {dramas.length} results:</p>
             {dramas.map((drama, index) => (
               <DramaCard 
@@ -1067,7 +1067,7 @@ function MobileWindowContent({
   }
 
   return (
-    <div className="p-3 pb-24 space-y-3">
+    <div className="p-3 pb-8 space-y-3">
       {dramas.map((drama, index) => (
         <DramaCard 
           key={`${drama.bookId}-${index}`} 
@@ -1347,7 +1347,7 @@ function WindowContentScrollable({
   return (
     <div 
       ref={scrollRef}
-      className="flex-1 overflow-y-auto overflow-x-hidden pb-24" 
+      className="flex-1 overflow-y-auto overflow-x-hidden pb-8" 
       style={{ WebkitOverflowScrolling: 'touch' }}
       onScroll={handleScroll}
     >
