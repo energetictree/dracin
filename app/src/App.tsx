@@ -486,7 +486,7 @@ function App() {
                 </div>
 
                 {/* Window Content */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div className="flex-1 overflow-y-auto overflow-x-hidden pb-24" style={{ WebkitOverflowScrolling: 'touch' }}>
                   {window.mode === 'loading' ? (
                     <div className="flex flex-col items-center justify-center h-full text-green-400 p-8 bg-black">
                       <div className="loading-dots text-4xl mb-4" />
@@ -784,6 +784,12 @@ function MobileWindowContent({
   const initialSearchQuery = typeof data === 'string' ? data : '';
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Pagination state for For You
+  const [foryouPage, setForyouPage] = useState(1);
+  const [foryouHasMore, setForyouHasMore] = useState(true);
+  const [foryouLoadingMore, setForyouLoadingMore] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
   // Set initial search query when data changes
   useEffect(() => {
     if (initialSearchQuery) {
@@ -812,6 +818,48 @@ function MobileWindowContent({
     }
   };
 
+  // Reset pagination when mode changes
+  useEffect(() => {
+    if (mode === 'foryou') {
+      setForyouPage(1);
+      setForyouHasMore(true);
+      setDramas([]);
+    }
+  }, [mode]);
+
+  // Load more For You dramas
+  const loadMoreForyou = async () => {
+    if (foryouLoadingMore || !foryouHasMore) return;
+    
+    setForyouLoadingMore(true);
+    try {
+      const nextPage = foryouPage + 1;
+      const result = await fetchForYouDramas(nextPage);
+      
+      if (result.length === 0) {
+        setForyouHasMore(false);
+      } else {
+        setDramas(prev => [...prev, ...result]);
+        setForyouPage(nextPage);
+      }
+    } catch (err) {
+      console.error('Error loading more For You dramas:', err);
+    } finally {
+      setForyouLoadingMore(false);
+    }
+  };
+
+  // Handle scroll for infinite scroll (For You only)
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (mode !== 'foryou') return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    // Load more when user scrolls to within 200px of bottom
+    if (scrollHeight - scrollTop - clientHeight < 200) {
+      loadMoreForyou();
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -827,7 +875,9 @@ function MobileWindowContent({
             result = await fetchTrendingDramas();
             break;
           case 'foryou':
-            result = await fetchForYouDramas();
+            result = await fetchForYouDramas(1);
+            setForyouPage(1);
+            setForyouHasMore(true);
             break;
           case 'vip':
             result = await fetchVIPDramas();
@@ -1037,7 +1087,7 @@ function MobileWindowContent({
         ) : error ? (
           <div className="text-red-500 text-center py-8">{error}</div>
         ) : dramas.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-3 pb-24">
             <p className="text-green-600 text-sm mb-2">Found {dramas.length} results:</p>
             {dramas.map((drama, index) => (
               <DramaCard 
@@ -1093,16 +1143,35 @@ function MobileWindowContent({
   }
 
   return (
-    <div className="p-3 space-y-3">
+    <div 
+      className="p-3 pb-24 space-y-3"
+      onScroll={mode === 'foryou' ? handleScroll : undefined}
+      ref={scrollContainerRef}
+    >
       {dramas.map((drama, index) => (
         <DramaCard 
-          key={drama.bookId} 
+          key={`${drama.bookId}-${index}`} 
           drama={drama} 
           index={index}
           onClick={() => onDramaClick(drama)}
           isMobile={true}
         />
       ))}
+      
+      {/* Loading more indicator for For You */}
+      {mode === 'foryou' && foryouLoadingMore && (
+        <div className="flex flex-col items-center justify-center py-4 text-green-400">
+          <div className="loading-dots text-xl mb-2" />
+          <p className="text-xs">Loading more...</p>
+        </div>
+      )}
+      
+      {/* End of list indicator */}
+      {mode === 'foryou' && !foryouHasMore && dramas.length > 0 && (
+        <div className="text-center py-4 text-green-600 text-xs">
+          End of list
+        </div>
+      )}
     </div>
   );
 }
