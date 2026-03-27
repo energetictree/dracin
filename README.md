@@ -17,10 +17,6 @@ A retro-styled drama streaming web application with a unique terminal/desktop in
 ![Desktop Interface](./screenshots/desktop-app.png)
 *Retro desktop environment with draggable windows*
 
-### Video Player
-![Video Player](./screenshots/player-app.png)
-*Built-in video player with auto-play next episode*
-
 ### Mobile Interface
 ![Mobile Interface](./screenshots/mobile-app.png)
 *Responsive mobile design with touch-friendly controls*
@@ -28,10 +24,6 @@ A retro-styled drama streaming web application with a unique terminal/desktop in
 ### Terminal Commands
 ![Terminal](./screenshots/terminal-app.png)
 *Interactive terminal with various commands*
-
-### History View
-![History](./screenshots/history-app.png)
-*Watch history with resume and remove options*
 
 ## ✨ Features
 
