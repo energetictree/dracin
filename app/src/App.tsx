@@ -892,7 +892,7 @@ function MobileWindowContent({
             <p className="text-center text-xs mt-2">Start watching dramas to see them here.</p>
           </div>
         ) : (
-          <div className="flex-1 overflow-auto p-3 space-y-3">
+          <div className="flex-1 overflow-auto p-3 pb-24 space-y-3">
             {history.map((item) => (
               <div
                 key={item.bookId}
