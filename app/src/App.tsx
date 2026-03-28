@@ -1438,8 +1438,56 @@ function MobileWindowContentWrapper({
     }
   };
   
-  // Render content based on mode
-  const renderContent = () => {
+  // Render scrollable content (for list views)
+  const renderScrollableContent = () => {
+    if (window.mode === 'foryou') {
+      if (foryouInitialLoading) {
+        return (
+          <div className="flex flex-col items-center justify-center h-64 text-green-400">
+            <div className="loading-dots text-3xl mb-4" />
+            <p>LOADING...</p>
+          </div>
+        );
+      }
+      return (
+        <div className="p-3 pb-10 space-y-3">
+          {foryouDramas.map((drama, index) => (
+            <DramaCard 
+              key={`${drama.bookId}-${index}`} 
+              drama={drama} 
+              index={index}
+              onClick={() => handleDramaClick(drama)}
+              isMobile={true}
+            />
+          ))}
+          {foryouLoadingMore && (
+            <div className="flex flex-col items-center justify-center py-4 text-green-400">
+              <div className="loading-dots text-xl mb-2" />
+              <p className="text-xs">Loading more...</p>
+            </div>
+          )}
+          {!foryouHasMore && foryouDramas.length > 0 && (
+            <div className="text-center py-4 text-green-600 text-xs">
+              End of list
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Default: other list modes
+    return (
+      <MobileWindowContent 
+        mode={window.mode} 
+        data={window.data}
+        onDramaClick={handleDramaClick}
+        onPlayVideo={handlePlayVideo}
+      />
+    );
+  };
+  
+  // Render full content (for player/detail/loading - no scroll wrapper)
+  const renderFullContent = () => {
     switch (window.mode) {
       case 'loading':
         return (
@@ -1481,51 +1529,21 @@ function MobileWindowContentWrapper({
           );
         }
         return null;
-      case 'foryou':
-        if (foryouInitialLoading) {
-          return (
-            <div className="flex flex-col items-center justify-center h-64 text-green-400">
-              <div className="loading-dots text-3xl mb-4" />
-              <p>LOADING...</p>
-            </div>
-          );
-        }
-        return (
-          <div className="p-3 pb-10 space-y-3">
-            {foryouDramas.map((drama, index) => (
-              <DramaCard 
-                key={`${drama.bookId}-${index}`} 
-                drama={drama} 
-                index={index}
-                onClick={() => handleDramaClick(drama)}
-                isMobile={true}
-              />
-            ))}
-            {foryouLoadingMore && (
-              <div className="flex flex-col items-center justify-center py-4 text-green-400">
-                <div className="loading-dots text-xl mb-2" />
-                <p className="text-xs">Loading more...</p>
-              </div>
-            )}
-            {!foryouHasMore && foryouDramas.length > 0 && (
-              <div className="text-center py-4 text-green-600 text-xs">
-                End of list
-              </div>
-            )}
-          </div>
-        );
       default:
-        return (
-          <MobileWindowContent 
-            mode={window.mode} 
-            data={window.data}
-            onDramaClick={handleDramaClick}
-            onPlayVideo={handlePlayVideo}
-          />
-        );
+        return null;
     }
   };
   
+  // For player/detail/loading: render without scroll wrapper
+  if (window.mode === 'player' || window.mode === 'detail' || window.mode === 'loading') {
+    return (
+      <div className="flex-1 overflow-hidden">
+        {renderFullContent()}
+      </div>
+    );
+  }
+  
+  // For list views (foryou, latest, etc.): render with scroll wrapper
   return (
     <div 
       ref={scrollRef}
@@ -1533,7 +1551,7 @@ function MobileWindowContentWrapper({
       style={{ WebkitOverflowScrolling: 'touch' }}
       onScroll={handleScroll}
     >
-      {renderContent()}
+      {renderScrollableContent()}
     </div>
   );
 }
