@@ -486,16 +486,48 @@ function App() {
                 </div>
 
                 {/* Window Content */}
-                <WindowContentScrollable 
-                  window={window}
-                  onClosePlayer={handleClosePlayer}
-                  onBackFromDetail={handleBackFromDetail}
-                  onPlayVideo={handlePlayVideo}
-                  onDramaClick={handleDramaClick}
-                  currentEpisodeNum={currentEpisodeNum}
-                  totalEpisodeCount={totalEpisodeCount}
-                  onNextEpisode={handleNextEpisode}
-                />
+                <div className="flex-1 overflow-y-auto overflow-x-hidden pb-10" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  {window.mode === 'loading' ? (
+                    <div className="flex flex-col items-center justify-center h-full text-green-400 p-8 bg-black">
+                      <div className="loading-dots text-4xl mb-4" />
+                      <p className="text-xl font-bold">LOADING VIDEO...</p>
+                      <p className="text-sm text-green-600 mt-2">Fetching episode data</p>
+                    </div>
+                  ) : window.mode === 'player' && window.videoData ? (
+                    <div className="player-wrapper">
+                      <VideoPlayer 
+                        key={window.videoData.src}
+                        src={window.videoData.src}
+                        poster={window.videoData.poster}
+                        title={window.videoData.title}
+                        onClose={() => closeWindow(window.id)}
+                        currentEpisode={currentEpisodeNum}
+                        totalEpisodes={totalEpisodeCount}
+                        onNextEpisode={handleNextEpisode}
+                        autoPlayNext={true}
+                      />
+                    </div>
+                  ) : window.mode === 'detail' && window.data && typeof window.data !== 'string' ? (
+                    <DramaDetail 
+                      drama={window.data} 
+                      isMobile={true}
+                      onBack={handleBackFromDetail}
+                      onPlayVideo={handlePlayVideo}
+                      defaultTab={window.defaultTab}
+                    />
+                  ) : window.mode === 'foryou' ? (
+                    <MobileForYouContent 
+                      onDramaClick={handleDramaClick}
+                    />
+                  ) : (
+                    <MobileWindowContent 
+                      mode={window.mode} 
+                      data={window.data}
+                      onDramaClick={handleDramaClick}
+                      onPlayVideo={handlePlayVideo}
+                    />
+                  )}
+                </div>
               </div>
             ))
           )}
@@ -1270,147 +1302,61 @@ function WindowContent({
   );
 }
 
-// Mobile Window Scrollable Container with For You pagination
-function WindowContentScrollable({
-  window,
-  onClosePlayer,
-  onBackFromDetail,
-  onPlayVideo,
+// Mobile For You Content with infinite scroll
+function MobileForYouContent({
   onDramaClick,
-  currentEpisodeNum,
-  totalEpisodeCount,
-  onNextEpisode,
 }: {
-  window: WindowState;
-  onClosePlayer: () => void;
-  onBackFromDetail: () => void;
-  onPlayVideo: (drama: Drama, episodeNum?: number) => void;
   onDramaClick: (drama: Drama) => void;
-  currentEpisodeNum: number;
-  totalEpisodeCount: number;
-  onNextEpisode: () => void;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dramas, setDramas] = useState<Drama[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   
-  // For You pagination state
-  const [foryouPage, setForyouPage] = useState(1);
-  const [foryouDramas, setForyouDramas] = useState<Drama[]>([]);
-  const [foryouHasMore, setForyouHasMore] = useState(true);
-  const [foryouLoadingMore, setForyouLoadingMore] = useState(false);
-  
-  // Reset For You state when mode changes
+  // Load initial data
   useEffect(() => {
-    if (window.mode === 'foryou') {
-      setForyouPage(1);
-      setForyouHasMore(true);
-      setForyouDramas([]);
-      // Load initial page
-      fetchForYouDramas(1).then(result => {
-        setForyouDramas(result);
-      });
-    }
-  }, [window.mode]);
+    setLoading(true);
+    fetchForYouDramas(1).then(result => {
+      setDramas(result);
+      setPage(1);
+      setHasMore(true);
+      setLoading(false);
+    });
+  }, []);
   
-  // Load more For You dramas
-  const loadMoreForyou = async () => {
-    if (foryouLoadingMore || !foryouHasMore) return;
+  // Load more function
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
     
-    setForyouLoadingMore(true);
+    setLoadingMore(true);
     try {
-      const nextPage = foryouPage + 1;
+      const nextPage = page + 1;
       const result = await fetchForYouDramas(nextPage);
       
       if (result.length === 0) {
-        setForyouHasMore(false);
+        setHasMore(false);
       } else {
-        setForyouDramas(prev => [...prev, ...result]);
-        setForyouPage(nextPage);
+        setDramas(prev => [...prev, ...result]);
+        setPage(nextPage);
       }
     } catch (err) {
-      console.error('Error loading more For You dramas:', err);
+      console.error('Error loading more:', err);
     } finally {
-      setForyouLoadingMore(false);
+      setLoadingMore(false);
     }
   };
   
-  // Handle scroll for infinite scroll (For You only)
+  // Handle scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (window.mode !== 'foryou') return;
-    
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    // Load more when user scrolls to within 200px of bottom
     if (scrollHeight - scrollTop - clientHeight < 200) {
-      loadMoreForyou();
+      loadMore();
     }
   };
   
-  return (
-    <div 
-      ref={scrollRef}
-      className="flex-1 overflow-y-auto overflow-x-hidden pb-10" 
-      style={{ WebkitOverflowScrolling: 'touch' }}
-      onScroll={handleScroll}
-    >
-      {window.mode === 'loading' ? (
-        <div className="flex flex-col items-center justify-center h-full text-green-400 p-8 bg-black">
-          <div className="loading-dots text-4xl mb-4" />
-          <p className="text-xl font-bold">LOADING VIDEO...</p>
-          <p className="text-sm text-green-600 mt-2">Fetching episode data</p>
-        </div>
-      ) : window.mode === 'player' && window.videoData ? (
-        <div className="player-wrapper">
-          <VideoPlayer 
-            key={window.videoData.src}
-            src={window.videoData.src}
-            poster={window.videoData.poster}
-            title={window.videoData.title}
-            onClose={onClosePlayer}
-            currentEpisode={currentEpisodeNum}
-            totalEpisodes={totalEpisodeCount}
-            onNextEpisode={handleNextEpisode}
-            autoPlayNext={true}
-          />
-        </div>
-      ) : window.mode === 'detail' && window.data && typeof window.data !== 'string' ? (
-        <DramaDetail 
-          drama={window.data} 
-          isMobile={true}
-          onBack={onBackFromDetail}
-          onPlayVideo={onPlayVideo}
-          defaultTab={window.defaultTab}
-        />
-      ) : window.mode === 'foryou' ? (
-        <ForYouMobileContent 
-          dramas={foryouDramas}
-          hasMore={foryouHasMore}
-          loadingMore={foryouLoadingMore}
-          onDramaClick={onDramaClick}
-        />
-      ) : (
-        <MobileWindowContent 
-          mode={window.mode} 
-          data={window.data}
-          onDramaClick={onDramaClick}
-          onPlayVideo={onPlayVideo}
-        />
-      )}
-    </div>
-  );
-}
-
-// For You specific mobile content with pagination
-function ForYouMobileContent({
-  dramas,
-  hasMore,
-  loadingMore,
-  onDramaClick,
-}: {
-  dramas: Drama[];
-  hasMore: boolean;
-  loadingMore: boolean;
-  onDramaClick: (drama: Drama) => void;
-}) {
-  if (dramas.length === 0) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-green-400">
         <div className="loading-dots text-3xl mb-4" />
@@ -1420,7 +1366,11 @@ function ForYouMobileContent({
   }
   
   return (
-    <div className="p-3 space-y-3">
+    <div 
+      ref={containerRef}
+      className="p-3 pb-10 space-y-3"
+      onScroll={handleScroll}
+    >
       {dramas.map((drama, index) => (
         <DramaCard 
           key={`${drama.bookId}-${index}`} 
@@ -1431,7 +1381,6 @@ function ForYouMobileContent({
         />
       ))}
       
-      {/* Loading more indicator */}
       {loadingMore && (
         <div className="flex flex-col items-center justify-center py-4 text-green-400">
           <div className="loading-dots text-xl mb-2" />
@@ -1439,7 +1388,6 @@ function ForYouMobileContent({
         </div>
       )}
       
-      {/* End of list indicator */}
       {!hasMore && dramas.length > 0 && (
         <div className="text-center py-4 text-green-600 text-xs">
           End of list
