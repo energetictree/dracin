@@ -524,26 +524,45 @@ export function VideoPlayer({
           color: #22c55e;
         }
         
-        /* Subtitle styling */
+        /* Subtitle styling - Bigger and darkish yellow */
         .video-js .vjs-text-track-display {
           z-index: 101 !important;
         }
         
         .video-js .vjs-text-track-cue {
           background: rgba(0, 0, 0, 0.8) !important;
-          color: #fff !important;
-          font-size: 16px !important;
+          color: #DAA520 !important; /* Goldenrod - darkish yellow */
+          font-size: 32px !important; /* 2x bigger */
           font-weight: bold !important;
-          text-shadow: 1px 1px 2px black !important;
+          text-shadow: 2px 2px 4px black !important;
+          line-height: 1.5 !important;
         }
         
-        /* Safari subtitle fixes */
+        /* Safari/iOS subtitle fixes */
         video::-webkit-media-text-track-container {
           z-index: 101 !important;
         }
         
         video::-webkit-media-text-track-display {
           background: rgba(0, 0, 0, 0.8) !important;
+        }
+        
+        /* iOS Safari specific subtitle styling */
+        video::cue {
+          font-size: 32px !important;
+          color: #DAA520 !important;
+          background: rgba(0, 0, 0, 0.8) !important;
+          text-shadow: 2px 2px 4px black !important;
+        }
+        
+        /* Mobile specific subtitle sizing */
+        @media (max-width: 768px) {
+          .video-js .vjs-text-track-cue {
+            font-size: 28px !important;
+          }
+          video::cue {
+            font-size: 28px !important;
+          }
         }
         
         /* Prevent zoom on mobile */
