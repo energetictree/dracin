@@ -565,18 +565,16 @@ function App() {
           onClose={() => setShowMobileTerminal(false)}
         />
 
-        {/* Mobile Bottom Navigation - Hidden when video player is active */}
-        {!windows.some(w => w.mode === 'player' && !w.isMinimized) && (
-          <MobileNav 
-            onOpenLatest={() => openWindow('latest', 'DRAMA_LATEST.EXE')}
-            onOpenTrending={() => openWindow('trending', 'DRAMA_TRENDING.EXE')}
-            onOpenForYou={() => openWindow('foryou', 'DRAMA_FORYOU.EXE')}
-            onOpenVIP={() => openWindow('vip', 'DRAMA_VIP.EXE')}
-            onSearch={handleMobileSearch}
-            activeWindowCount={windows.length}
-            onCloseAll={closeAllWindows}
-          />
-        )}
+        {/* Mobile Bottom Navigation - Always visible */}
+        <MobileNav 
+          onOpenLatest={() => openWindow('latest', 'DRAMA_LATEST.EXE')}
+          onOpenTrending={() => openWindow('trending', 'DRAMA_TRENDING.EXE')}
+          onOpenForYou={() => openWindow('foryou', 'DRAMA_FORYOU.EXE')}
+          onOpenVIP={() => openWindow('vip', 'DRAMA_VIP.EXE')}
+          onSearch={handleMobileSearch}
+          activeWindowCount={windows.length}
+          onCloseAll={closeAllWindows}
+        />
       </div>
     );
   }
