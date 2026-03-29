@@ -68,7 +68,7 @@ export function DramaCard({ drama, index, onClick, isMobile = false, hideHotCode
 
             <div className="flex items-center justify-between mt-2">
               <div className="flex gap-1 flex-wrap">
-                {drama.tags.slice(0, 2).map((tag, i) => (
+                {(drama.tags || []).slice(0, 2).map((tag, i) => (
                   <span 
                     key={i}
                     className="text-[10px] bg-green-900/30 border border-green-700 text-green-500 px-1"
@@ -153,7 +153,7 @@ export function DramaCard({ drama, index, onClick, isMobile = false, hideHotCode
 
       {/* Tags */}
       <div className="flex flex-wrap gap-1 mb-3">
-        {drama.tags.slice(0, 3).map((tag, i) => (
+        {(drama.tags || []).slice(0, 3).map((tag, i) => (
           <span 
             key={i}
             className="text-xs bg-green-900/30 border border-green-700 text-green-500 px-1 py-0.5"
@@ -161,8 +161,8 @@ export function DramaCard({ drama, index, onClick, isMobile = false, hideHotCode
             {tag}
           </span>
         ))}
-        {drama.tags.length > 3 && (
-          <span className="text-xs text-green-600">+{drama.tags.length - 3}</span>
+        {(drama.tags || []).length > 3 && (
+          <span className="text-xs text-green-600">+{(drama.tags || []).length - 3}</span>
         )}
       </div>
 

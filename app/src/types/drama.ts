@@ -84,12 +84,20 @@ export interface CdnItem {
   videoPathList: VideoPathItem[];
 }
 
+export interface SubtitleLanguage {
+  captionLanguage: string;
+  captionLanguageName: string;
+  url: string;
+}
+
 export interface EpisodeDataFromApi {
   chapterId: string;
   chapterIndex: number;
   isCharge: number;
   chapterName: string;
   cdnList: CdnItem[];
+  useMultiSubtitle?: number;
+  subLanguageVoList?: SubtitleLanguage[];
 }
 
 export interface SearchResult {
@@ -130,4 +138,5 @@ export interface VideoData {
   src: string;
   poster?: string;
   title?: string;
+  subtitleUrl?: string;
 }

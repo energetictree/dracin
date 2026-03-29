@@ -448,6 +448,104 @@ export async function getEpisodeVideoUrl(
 }
 
 /**
+ * Convert SRT content to VTT format
+ * Client-side conversion - no external API needed
+ */
+function srtToVtt(srtContent: string): string {
+  // VTT header
+  let vtt = 'WEBVTT\n\n';
+  
+  // Replace SRT timing format with VTT format
+  // SRT: 00:00:00,000 --> 00:00:00,000
+  // VTT: 00:00:00.000 --> 00:00:00.000
+  vtt += srtContent
+    .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
+    .replace(/^(\d+)\n/gm, ''); // Remove SRT cue numbers
+  
+  return vtt;
+}
+
+/**
+ * Convert subtitle URL to VTT format
+ * Downloads SRT, converts client-side, creates blob URL
+ * This is called only when user plays a specific episode
+ */
+export async function convertSubtitleToVtt(subtitleUrl: string): Promise<string | null> {
+  try {
+    console.log('[Subtitle] Fetching SRT from:', subtitleUrl);
+    
+    // Fetch the SRT file
+    const response = await fetch(subtitleUrl);
+    if (!response.ok) {
+      console.error('Failed to fetch subtitle:', response.status);
+      return null;
+    }
+    
+    const srtContent = await response.text();
+    console.log('[Subtitle] SRT loaded, size:', srtContent.length);
+    
+    // Convert to VTT
+    const vttContent = srtToVtt(srtContent);
+    console.log('[Subtitle] Converted to VTT');
+    
+    // Create blob URL
+    const blob = new Blob([vttContent], { type: 'text/vtt' });
+    const blobUrl = URL.createObjectURL(blob);
+    console.log('[Subtitle] Blob URL created:', blobUrl.substring(0, 50) + '...');
+    
+    return blobUrl;
+  } catch (error) {
+    console.error('Error converting subtitle to VTT:', error);
+    return null;
+  }
+}
+
+/**
+ * Get English subtitle for a specific episode (raw URL, not converted)
+ * Returns null if no English subtitle available
+ */
+export async function getEpisodeSubtitleRaw(
+  bookId: string,
+  episodeNum: number
+): Promise<{ subtitleUrl: string; needsConversion: boolean } | null> {
+  try {
+    const episodes = await fetchAllEpisodesRaw(bookId);
+
+    if (!episodes || episodes.length === 0) {
+      return null;
+    }
+
+    const episode = episodes.find(ep => ep.chapterIndex === episodeNum - 1) || episodes[episodeNum - 1];
+
+    if (!episode) {
+      return null;
+    }
+
+    // Check if multi-subtitle is enabled
+    if (episode.useMultiSubtitle !== 1) {
+      return null;
+    }
+
+    // Find English subtitle
+    const englishSub = episode.subLanguageVoList?.find(
+      sub => sub.captionLanguage === 'en'
+    );
+
+    if (!englishSub?.url) {
+      return null;
+    }
+
+    return {
+      subtitleUrl: englishSub.url,
+      needsConversion: true
+    };
+  } catch (error) {
+    console.error('Error getting episode subtitle:', error);
+    return null;
+  }
+}
+
+/**
  * Get video URL for first episode
  * Note: This is computed data, no caching needed (relies on fetchAllEpisodesRaw which is cached)
  */

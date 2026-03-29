@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Terminal, Search, TrendingUp, Clock, Star, X, Minus, Monitor, Cpu, HardDrive, Menu, ArrowLeft, Maximize2, Minimize2, History, Play, Trash2 } from 'lucide-react';
-import { fetchLatestDramas, fetchTrendingDramas, fetchForYouDramas, fetchVIPDramas, searchDramas, getEpisodeVideoUrl, getFirstEpisodeVideoUrl } from '@/services/dramaApiCached';
+import { fetchLatestDramas, fetchTrendingDramas, fetchForYouDramas, fetchVIPDramas, searchDramas, getEpisodeVideoUrl, getFirstEpisodeVideoUrl, getEpisodeSubtitleRaw, convertSubtitleToVtt } from '@/services/dramaApiCached';
 import type { Drama, WindowState, ViewMode, VideoData } from '@/types/drama';
 import { DramaCard } from '@/components/DramaCard';
 import { DramaDetail } from '@/components/DramaDetail';
@@ -27,6 +27,13 @@ function App() {
   const [mobilePreviousMode, setMobilePreviousMode] = useState<ViewMode | null>(null);
   const [mobilePreviousData, setMobilePreviousData] = useState<Drama | string | null>(null);
   const [playerReturnDrama, setPlayerReturnDrama] = useState<Drama | null>(null);
+  const playerReturnDramaRef = useRef<Drama | null>(null);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    playerReturnDramaRef.current = playerReturnDrama;
+  }, [playerReturnDrama]);
+  
   const [currentEpisodeNum, setCurrentEpisodeNum] = useState<number>(1);
   const [totalEpisodeCount, setTotalEpisodeCount] = useState<number>(0);
   const [showMobileTerminal, setShowMobileTerminal] = useState(false);
@@ -293,20 +300,42 @@ function App() {
         episodeNum = videoResult?.episodeNum || 1;
       }
       
+      // Load subtitle if available (on-demand conversion)
+      let subtitleVttUrl: string | undefined;
+      try {
+        addLog(`CHECKING SUBTITLE: Episode ${epNum}...`);
+        const subtitleInfo = await getEpisodeSubtitleRaw(drama.bookId, epNum);
+        if (subtitleInfo) {
+          addLog(`CONVERTING SUBTITLE: English subtitle found...`);
+          const vttUrl = await convertSubtitleToVtt(subtitleInfo.subtitleUrl);
+          if (vttUrl) {
+            subtitleVttUrl = vttUrl;
+            addLog(`SUBTITLE READY: English VTT loaded`);
+          }
+        } else {
+          addLog(`NO SUBTITLE: No English subtitle available`);
+        }
+      } catch (subError) {
+        console.error('Subtitle load error:', subError);
+        addLog(`SUBTITLE ERROR: Failed to load subtitle`);
+      }
+      
       if (videoResult && videoResult.url) {
         openWindow('player', `PLAYER: ${drama.bookName}${episodeNum ? ` EP.${episodeNum}` : ''}`, drama, {
           src: videoResult.url,
           poster: drama.coverWap,
-          title: `${drama.bookName}${episodeNum ? ` - Episode ${episodeNum}` : ''}`
+          title: `${drama.bookName}${episodeNum ? ` - Episode ${episodeNum}` : ''}`,
+          subtitleUrl: subtitleVttUrl
         });
-        addLog(`VIDEO LOADED: Quality ${videoResult.quality}`);
+        addLog(`VIDEO LOADED: Quality ${videoResult.quality}${subtitleVttUrl ? ' + Subtitle' : ''}`);
       } else {
         addLog('ERROR: Failed to load video - No video URL found');
         // Fallback to sample video for testing
         openWindow('player', `PLAYER: ${drama.bookName}${episodeNum ? ` EP.${episodeNum}` : ''}`, drama, {
           src: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
           poster: drama.coverWap,
-          title: `${drama.bookName}${episodeNum ? ` - Episode ${episodeNum}` : ''} (SAMPLE)`
+          title: `${drama.bookName}${episodeNum ? ` - Episode ${episodeNum}` : ''} (SAMPLE)`,
+          subtitleUrl: subtitleVttUrl
         });
       }
     } catch (error) {
@@ -323,14 +352,20 @@ function App() {
   }, [playerReturnDrama, currentEpisodeNum, totalEpisodeCount, handlePlayVideo]);
 
   const handleClosePlayer = useCallback(() => {
-    // Go back to detail view with episodes tab open
-    if (playerReturnDrama) {
-      openWindow('detail', `DETAIL: ${playerReturnDrama.bookName}`, playerReturnDrama, undefined, 'episodes');
+    // Always close the player window first (mobile uses 'win-mobile' as id)
+    // Use ref to get latest value and avoid stale closure
+    const drama = playerReturnDramaRef.current;
+    addLog(`[handleClosePlayer] Called. Drama: ${drama?.bookName || 'null'}`);
+    closeWindow('win-mobile');
+    // Then go back to detail view with episodes tab open
+    if (drama) {
+      addLog(`[handleClosePlayer] Opening detail for ${drama.bookName}`);
+      openWindow('detail', `DETAIL: ${drama.bookName}`, drama, undefined, 'episodes');
       setPlayerReturnDrama(null);
     } else {
-      closeWindow('win-mobile');
+      addLog('[handleClosePlayer] No drama to return to!');
     }
-  }, [playerReturnDrama, openWindow, closeWindow]);
+  }, [closeWindow, openWindow, addLog]);
 
   const handleBackFromDetail = useCallback(() => {
     // Go back to previous mode if available, otherwise go to latest
@@ -479,7 +514,13 @@ function App() {
                   </div>
                   <button 
                     className="w-6 h-6 bg-red-500 flex items-center justify-center text-white"
-                    onClick={() => closeWindow(window.id)}
+                    onClick={() => {
+                      if (window.mode === 'player') {
+                        handleClosePlayer();
+                      } else {
+                        closeWindow(window.id);
+                      }
+                    }}
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -495,6 +536,7 @@ function App() {
                   currentEpisodeNum={currentEpisodeNum}
                   totalEpisodeCount={totalEpisodeCount}
                   handleNextEpisode={handleNextEpisode}
+                  handleClosePlayer={handleClosePlayer}
                 />
               </div>
             ))
@@ -1377,6 +1419,7 @@ function MobileWindowContentWrapper({
   currentEpisodeNum,
   totalEpisodeCount,
   handleNextEpisode,
+  handleClosePlayer,
 }: {
   window: WindowState;
   closeWindow: (id: string) => void;
@@ -1386,26 +1429,37 @@ function MobileWindowContentWrapper({
   currentEpisodeNum: number;
   totalEpisodeCount: number;
   handleNextEpisode: () => void;
+  handleClosePlayer: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [foryouDramas, setForyouDramas] = useState<Drama[]>([]);
   const [foryouPage, setForyouPage] = useState(1);
   const [foryouHasMore, setForyouHasMore] = useState(true);
   const [foryouLoadingMore, setForyouLoadingMore] = useState(false);
-  const [foryouInitialLoading, setForyouInitialLoading] = useState(true);
+  const [foryouInitialLoading, setForyouInitialLoading] = useState(false);
+  const foryouInitRef = useRef(false);
   
   // Reset For You state when entering For You mode
   useEffect(() => {
-    if (window.mode === 'foryou') {
-      setForyouPage(1);
-      setForyouHasMore(true);
-      setForyouInitialLoading(true);
-      fetchForYouDramas(1).then(result => {
-        setForyouDramas(result);
-        setForyouInitialLoading(false);
-      });
+    if (window.mode === 'foryou' && !foryouInitRef.current) {
+      foryouInitRef.current = true;
+      // Only load if we don't already have dramas
+      if (foryouDramas.length === 0) {
+        setForyouPage(1);
+        setForyouHasMore(true);
+        setForyouInitialLoading(true);
+        fetchForYouDramas(1).then(result => {
+          setForyouDramas(result);
+          setForyouInitialLoading(false);
+        }).catch(err => {
+          console.error('[For You] Error:', err);
+          setForyouInitialLoading(false);
+        });
+      }
+    } else if (window.mode !== 'foryou') {
+      foryouInitRef.current = false;
     }
-  }, [window.mode]);
+  }, [window.mode, foryouDramas.length]);
   
   // Load more For You dramas
   const loadMoreForyou = async () => {
@@ -1508,7 +1562,8 @@ function MobileWindowContentWrapper({
                 src={window.videoData.src}
                 poster={window.videoData.poster}
                 title={window.videoData.title}
-                onClose={() => closeWindow(window.id)}
+                subtitleUrl={window.videoData.subtitleUrl}
+                onClose={handleClosePlayer}
                 currentEpisode={currentEpisodeNum}
                 totalEpisodes={totalEpisodeCount}
                 onNextEpisode={handleNextEpisode}

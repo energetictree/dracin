@@ -46,6 +46,7 @@ A retro-styled drama streaming web application with a unique terminal/desktop in
 - **Auto Next Episode** - Automatically play next episode when current ends
 - **Quality Selection** - Multiple quality options (720p, 540p, etc.)
 - **Fullscreen Support** - True fullscreen on all devices
+- **Multi-Language Subtitles** - Support for English and Indonesian subtitles with toggle option
 
 ### 📚 Watch History
 - **Persistent History** - Track watched episodes locally
@@ -149,8 +150,8 @@ dracin/
    PUBLIC_URL=https://your-domain.com
    
    # Your API endpoints (required)
-   PRIMARY_API_URL=https://your-primary-api.com/api/dramabox
-   BACKUP_API_URL=https://your-backup-api.com/api/dramabox
+   PRIMARY_API_URL=https://your-primary-api.com
+   BACKUP_API_URL=https://your-backup-api.com
    ```
 
 4. **Install dependencies**
