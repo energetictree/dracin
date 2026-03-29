@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
+import { SkipBack, SkipForward } from 'lucide-react';
 import type { SubtitleTrack } from '@/types/drama';
 
 interface VideoPlayerProps {
@@ -12,6 +13,7 @@ interface VideoPlayerProps {
   onClose?: () => void;
   currentEpisode?: number;
   totalEpisodes?: number;
+  onPrevEpisode?: () => void;
   onNextEpisode?: () => void;
   autoPlayNext?: boolean;
 }
@@ -25,6 +27,7 @@ export function VideoPlayer({
   onClose, 
   currentEpisode, 
   totalEpisodes, 
+  onPrevEpisode,
   onNextEpisode,
   autoPlayNext = true
 }: VideoPlayerProps) {
@@ -33,14 +36,18 @@ export function VideoPlayer({
   const [isLoading, setIsLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeSubtitleLang, setActiveSubtitleLang] = useState<string>('en'); // Default to English
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState(false); // Default to OFF
 
   // Use subtitles array if provided, otherwise fall back to single subtitleUrl
-  const availableSubtitles = subtitles || (subtitleUrl ? [{
-    url: subtitleUrl,
-    language: 'en',
-    label: 'English',
-    isDefault: true
-  }] : []);
+  // Memoized to prevent unnecessary re-renders
+  const availableSubtitles = useMemo(() => {
+    return subtitles || (subtitleUrl ? [{
+      url: subtitleUrl,
+      language: 'en',
+      label: 'English',
+      isDefault: true
+    }] : []);
+  }, [subtitles, subtitleUrl]);
 
   useEffect(() => {
     if (!videoRef.current) return;
@@ -141,10 +148,11 @@ export function VideoPlayer({
       setIsLoading(false);
     });
 
-    // Handle video ended
+    // Handle video ended - auto play next if enabled
     player.on('ended', () => {
-      console.log('[VideoPlayer] video ended');
-      if (autoPlayNext && onNextEpisode && currentEpisode && totalEpisodes && currentEpisode < totalEpisodes) {
+      console.log('[VideoPlayer] video ended, autoPlayEnabled:', autoPlayEnabled);
+      if (autoPlayEnabled && onNextEpisode && currentEpisode && totalEpisodes && currentEpisode < totalEpisodes) {
+        console.log('[VideoPlayer] Auto-playing next episode');
         onNextEpisode();
       }
     });
@@ -167,10 +175,14 @@ export function VideoPlayer({
     // Transform the video URL
     const decryptUrl = `https://api.sansekai.my.id/api/dramabox/decrypt-stream?url=${encodeURIComponent(src)}`;
     
+    console.log('[VideoPlayer] Loading video:', decryptUrl.substring(0, 100) + '...');
+    
     player.src({
       src: decryptUrl,
       type: 'application/x-mpegURL',
     });
+    
+    // Note: Autoplay disabled - user must click play manually
     
     // Add all subtitle tracks
     if (availableSubtitles.length > 0) {
@@ -252,7 +264,7 @@ export function VideoPlayer({
         playerRef.current = null;
       }
     };
-  }, [src, poster, availableSubtitles, autoPlayNext, currentEpisode, totalEpisodes, onNextEpisode]);
+  }, [src, poster, subtitles, subtitleUrl, autoPlayEnabled, autoPlayNext, currentEpisode, totalEpisodes, onNextEpisode, onPrevEpisode]);
 
   // Handle subtitle language switch
   const handleSubtitleChange = (language: string) => {
@@ -299,6 +311,18 @@ export function VideoPlayer({
                 ))}
               </select>
             )}
+            {/* Autoplay Toggle */}
+            {onNextEpisode && (
+              <label className="flex items-center gap-1 px-2 py-1 text-xs font-bold bg-gray-800 text-green-400 border border-green-600 rounded cursor-pointer" title="Auto-play next episode">
+                <input
+                  type="checkbox"
+                  checked={autoPlayEnabled}
+                  onChange={(e) => setAutoPlayEnabled(e.target.checked)}
+                  className="w-3 h-3 accent-green-500"
+                />
+                <span>Autoplay</span>
+              </label>
+            )}
             {onClose && (
               <button 
                 className="w-6 h-6 bg-red-500 flex items-center justify-center text-white hover:bg-red-400"
@@ -311,16 +335,49 @@ export function VideoPlayer({
         </div>
       )}
 
-      {/* Next Episode Button - Hidden when fullscreen */}
-      {!isFullscreen && onNextEpisode && typeof currentEpisode === 'number' && typeof totalEpisodes === 'number' && currentEpisode < totalEpisodes && (
-        <div className="next-episode-container px-4 py-3 bg-black border-b-2 border-green-600">
-          <button
-            onClick={onNextEpisode}
-            className="w-full py-3 px-4 bg-green-700 hover:bg-green-600 active:bg-green-500 text-white font-bold flex items-center justify-center gap-3 transition-colors"
-          >
-            <span>NEXT EPISODE</span>
-            <span className="text-green-300 text-sm">({currentEpisode + 1} / {totalEpisodes})</span>
-          </button>
+      {/* Episode Navigation Buttons - Hidden when fullscreen */}
+      {!isFullscreen && typeof currentEpisode === 'number' && typeof totalEpisodes === 'number' && totalEpisodes > 1 && (
+        <div className="episode-nav-container px-4 py-3 bg-black border-b-2 border-green-600">
+          <div className="flex items-center justify-center gap-4">
+            {/* Previous Episode Button */}
+            {onPrevEpisode && (
+              <button
+                onClick={onPrevEpisode}
+                disabled={currentEpisode <= 1}
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded font-bold transition-colors ${
+                  currentEpisode <= 1
+                    ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                    : 'bg-green-700 hover:bg-green-600 active:bg-green-500 text-white'
+                }`}
+                title={currentEpisode > 1 ? `Episode ${currentEpisode - 1}` : 'First episode'}
+              >
+                <SkipBack className="w-5 h-5" />
+                <span className="text-sm">PREV</span>
+              </button>
+            )}
+            
+            {/* Episode Counter */}
+            <div className="text-green-400 font-bold text-sm px-2">
+              {currentEpisode} / {totalEpisodes}
+            </div>
+            
+            {/* Next Episode Button */}
+            {onNextEpisode && (
+              <button
+                onClick={onNextEpisode}
+                disabled={currentEpisode >= totalEpisodes}
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded font-bold transition-colors ${
+                  currentEpisode >= totalEpisodes
+                    ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                    : 'bg-green-700 hover:bg-green-600 active:bg-green-500 text-white'
+                }`}
+                title={currentEpisode < totalEpisodes ? `Episode ${currentEpisode + 1}` : 'Last episode'}
+              >
+                <span className="text-sm">NEXT</span>
+                <SkipForward className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 

@@ -333,6 +333,9 @@ function App() {
         addLog(`SUBTITLE ERROR: Failed to load subtitles`);
       }
       
+      // Close loading window before opening player
+      closeWindow('win-mobile');
+      
       if (videoResult && videoResult.url) {
         openWindow('player', `PLAYER: ${drama.bookName}${episodeNum ? ` EP.${episodeNum}` : ''}`, drama, {
           src: videoResult.url,
@@ -365,6 +368,13 @@ function App() {
       handlePlayVideo(playerReturnDrama, nextEp);
     }
   }, [playerReturnDrama, currentEpisodeNum, totalEpisodeCount, handlePlayVideo]);
+
+  const handlePrevEpisode = useCallback(() => {
+    if (playerReturnDrama && currentEpisodeNum > 1) {
+      const prevEp = currentEpisodeNum - 1;
+      handlePlayVideo(playerReturnDrama, prevEp);
+    }
+  }, [playerReturnDrama, currentEpisodeNum, handlePlayVideo]);
 
   const handleClosePlayer = useCallback(() => {
     // Always close the player window first (mobile uses 'win-mobile' as id)
@@ -545,6 +555,7 @@ function App() {
                 <MobileWindowContentWrapper
                   window={window}
                   handleBackFromDetail={handleBackFromDetail}
+                  handlePrevEpisode={handlePrevEpisode}
                   handlePlayVideo={handlePlayVideo}
                   handleDramaClick={handleDramaClick}
                   currentEpisodeNum={currentEpisodeNum}
@@ -671,6 +682,7 @@ function App() {
                     onClose={() => closeWindow(window.id)}
                     currentEpisode={currentEpisodeNum}
                     totalEpisodes={totalEpisodeCount}
+                    onPrevEpisode={handlePrevEpisode}
                     onNextEpisode={handleNextEpisode}
                     autoPlayNext={true}
                   />
@@ -1428,6 +1440,7 @@ function MobileWindowContentWrapper({
   handleDramaClick,
   currentEpisodeNum,
   totalEpisodeCount,
+  handlePrevEpisode,
   handleNextEpisode,
   handleClosePlayer,
 }: {
@@ -1437,6 +1450,7 @@ function MobileWindowContentWrapper({
   handleDramaClick: (drama: Drama) => void;
   currentEpisodeNum: number;
   totalEpisodeCount: number;
+  handlePrevEpisode: () => void;
   handleNextEpisode: () => void;
   handleClosePlayer: () => void;
 }) {
@@ -1576,6 +1590,7 @@ function MobileWindowContentWrapper({
                 onClose={handleClosePlayer}
                 currentEpisode={currentEpisodeNum}
                 totalEpisodes={totalEpisodeCount}
+                onPrevEpisode={handlePrevEpisode}
                 onNextEpisode={handleNextEpisode}
                 autoPlayNext={true}
               />
