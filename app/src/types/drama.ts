@@ -126,17 +126,21 @@ export interface WindowState {
     size: { width: number; height: number };
   };
   data?: Drama | string | null;  // Drama for detail/player, string for search query
-  videoData?: {
-    src: string;
-    poster?: string;
-    title?: string;
-  };
+  videoData?: VideoData;
   defaultTab?: 'info' | 'episodes';  // For detail view to show episodes tab by default
+}
+
+export interface SubtitleTrack {
+  url: string;
+  language: string;
+  label: string;
+  isDefault?: boolean;
 }
 
 export interface VideoData {
   src: string;
   poster?: string;
   title?: string;
-  subtitleUrl?: string;
+  subtitleUrl?: string; // Legacy single subtitle support
+  subtitles?: SubtitleTrack[]; // New multi-subtitle support
 }

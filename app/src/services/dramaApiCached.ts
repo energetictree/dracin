@@ -503,6 +503,7 @@ export async function convertSubtitleToVtt(subtitleUrl: string): Promise<string 
 /**
  * Get English subtitle for a specific episode (raw URL, not converted)
  * Returns null if no English subtitle available
+ * @deprecated Use getEpisodeSubtitles instead for multi-language support
  */
 export async function getEpisodeSubtitleRaw(
   bookId: string,
@@ -542,6 +543,78 @@ export async function getEpisodeSubtitleRaw(
   } catch (error) {
     console.error('Error getting episode subtitle:', error);
     return null;
+  }
+}
+
+import type { SubtitleTrack } from '@/types/drama';
+
+/**
+ * Get all available subtitles for a specific episode
+ * Returns array of subtitle tracks (English and Indonesian)
+ * English is set as default
+ */
+export async function getEpisodeSubtitles(
+  bookId: string,
+  episodeNum: number
+): Promise<SubtitleTrack[]> {
+  try {
+    const episodes = await fetchAllEpisodesRaw(bookId);
+
+    if (!episodes || episodes.length === 0) {
+      return [];
+    }
+
+    const episode = episodes.find(ep => ep.chapterIndex === episodeNum - 1) || episodes[episodeNum - 1];
+
+    if (!episode) {
+      return [];
+    }
+
+    // Check if multi-subtitle is enabled
+    if (episode.useMultiSubtitle !== 1) {
+      return [];
+    }
+
+    const subtitles: SubtitleTrack[] = [];
+
+    // Find English subtitle (default)
+    const englishSub = episode.subLanguageVoList?.find(
+      sub => sub.captionLanguage === 'en'
+    );
+
+    if (englishSub?.url) {
+      subtitles.push({
+        url: englishSub.url,
+        language: 'en',
+        label: englishSub.captionLanguageName || 'English',
+        isDefault: true
+      });
+    }
+
+    // Find Indonesian subtitle (by language code 'in' or isDefault flag, or name containing 'Indonesia')
+    const indonesianSub = episode.subLanguageVoList?.find(
+      sub => sub.captionLanguage === 'in' || 
+             sub.captionLanguage?.toLowerCase().includes('id') ||
+             sub.captionLanguageName?.toLowerCase().includes('indonesia') ||
+             sub.captionLanguageName?.toLowerCase().includes('bahasa')
+    );
+
+    if (indonesianSub?.url) {
+      subtitles.push({
+        url: indonesianSub.url,
+        language: 'in',
+        label: indonesianSub.captionLanguageName || 'Indonesia',
+        isDefault: false
+      });
+    }
+
+    console.log(`[Subtitles] Found ${subtitles.length} subtitle tracks for episode ${episodeNum}:`, 
+      subtitles.map(s => `${s.label} (${s.language})`).join(', '));
+
+    return subtitles;
+  } catch (error) {
+    console.error('Error getting episode subtitles:', error);
+    return [];
   }
 }
 

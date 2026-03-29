@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
+import type { SubtitleTrack } from '@/types/drama';
 
 interface VideoPlayerProps {
   src: string;
   poster?: string;
   title?: string;
   subtitleUrl?: string;
+  subtitles?: SubtitleTrack[];
   onClose?: () => void;
   currentEpisode?: number;
   totalEpisodes?: number;
@@ -19,6 +21,7 @@ export function VideoPlayer({
   poster, 
   title, 
   subtitleUrl,
+  subtitles,
   onClose, 
   currentEpisode, 
   totalEpisodes, 
@@ -28,8 +31,16 @@ export function VideoPlayer({
   const videoRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<ReturnType<typeof videojs> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [subtitleEnabled, setSubtitleEnabled] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [activeSubtitleLang, setActiveSubtitleLang] = useState<string>('en'); // Default to English
+
+  // Use subtitles array if provided, otherwise fall back to single subtitleUrl
+  const availableSubtitles = subtitles || (subtitleUrl ? [{
+    url: subtitleUrl,
+    language: 'en',
+    label: 'English',
+    isDefault: true
+  }] : []);
 
   useEffect(() => {
     if (!videoRef.current) return;
@@ -46,12 +57,12 @@ export function VideoPlayer({
           limitRenditionByPlayerDimensions: true,
           useDevicePixelRatio: true,
         },
-        nativeTextTracks: false, // Important for Safari
+        nativeTextTracks: false,
         nativeAudioTracks: false,
         nativeVideoTracks: false,
       },
       controls: true,
-      fluid: false, // Changed to false for better mobile control
+      fluid: false,
       responsive: true,
       preload: 'auto',
       poster: poster,
@@ -140,13 +151,11 @@ export function VideoPlayer({
 
     // Handle fullscreen change
     const handleFullscreenChange = () => {
-      const fs = player.isFullscreen();
+      const fs = player.isFullscreen() || false;
       console.log('[VideoPlayer] fullscreen change:', fs);
       setIsFullscreen(fs);
       
-      // Force player to recalculate size on fullscreen change
       if (!fs) {
-        // Small delay to let the browser settle
         setTimeout(() => {
           player.trigger('resize');
         }, 100);
@@ -163,66 +172,74 @@ export function VideoPlayer({
       type: 'application/x-mpegURL',
     });
     
-    // Add subtitle track with Safari compatibility
-    if (subtitleUrl) {
+    // Add all subtitle tracks
+    if (availableSubtitles.length > 0) {
       player.ready(() => {
-        console.log('[VideoPlayer] Adding subtitle track:', subtitleUrl);
+        console.log('[VideoPlayer] Adding subtitle tracks:', availableSubtitles);
         
-        // Method 1: Using Video.js addRemoteTextTrack
-        const track = player.addRemoteTextTrack({
-          kind: 'subtitles',
-          src: subtitleUrl,
-          srclang: 'en',
-          label: 'English',
-          default: true,
-          mode: 'showing'
-        }, true); // Changed to true for manual cleanup
-        
-        // Force the track to show - important for Safari
-        if (track) {
-          track.mode = 'showing';
+        availableSubtitles.forEach((sub, index) => {
+          const isDefault = sub.isDefault || index === 0;
           
-          // Safari-specific: ensure track is properly loaded
-          if (track.track) {
-            track.track.mode = 'showing';
+          // Add via Video.js API
+          const track = player.addRemoteTextTrack({
+            kind: 'subtitles',
+            src: sub.url,
+            srclang: sub.language,
+            label: sub.label,
+            default: isDefault,
+            mode: isDefault ? 'showing' : 'disabled'
+          }, true);
+          
+          if (track) {
+            // Set track mode for Video.js TextTrack object
+            const textTrack = track as unknown as { mode: string };
+            textTrack.mode = isDefault ? 'showing' : 'disabled';
           }
           
-          console.log('[VideoPlayer] Subtitle track added:', track);
-        }
-        
-        // Method 2: Also add via HTML video element for Safari
-        const tech = player.tech({ IWillNotUseThisInPlugins: true });
-        if (tech && tech.el) {
-          const videoEl = tech.el() as HTMLVideoElement;
-          if (videoEl) {
-            // Remove any existing tracks
-            while (videoEl.querySelector('track')) {
-              const existingTrack = videoEl.querySelector('track');
-              if (existingTrack) {
-                videoEl.removeChild(existingTrack);
-              }
+          // Also add via HTML video element for Safari
+          const tech = player.tech({ IWillNotUseThisInPlugins: true });
+          if (tech && tech.el) {
+            const videoEl = tech.el() as HTMLVideoElement;
+            if (videoEl) {
+              const trackEl = document.createElement('track');
+              trackEl.kind = 'subtitles';
+              trackEl.src = sub.url;
+              trackEl.srclang = sub.language;
+              trackEl.label = sub.label;
+              trackEl.default = isDefault;
+              videoEl.appendChild(trackEl);
             }
-            
-            // Add new track element
-            const trackEl = document.createElement('track');
-            trackEl.kind = 'subtitles';
-            trackEl.src = subtitleUrl;
-            trackEl.srclang = 'en';
-            trackEl.label = 'English';
-            trackEl.default = true;
-            videoEl.appendChild(trackEl);
-            
-            console.log('[VideoPlayer] Track element added to video for Safari');
           }
+        });
+        
+        // Set initial active language
+        const defaultSub = availableSubtitles.find(s => s.isDefault) || availableSubtitles[0];
+        if (defaultSub) {
+          setActiveSubtitleLang(defaultSub.language);
         }
       });
     }
     
-    // Failsafe: hide loading after 10 seconds
+    // Failsafe: hide loading after 8 seconds max
     const failsafeTimer = setTimeout(() => {
-      console.log('[VideoPlayer] failsafe: forcing loading off');
+      console.log('[VideoPlayer] failsafe: forcing loading off after timeout');
       setIsLoading(false);
-    }, 10000);
+    }, 8000);
+    
+    // Additional failsafe: try to play after ready
+    player.ready(() => {
+      console.log('[VideoPlayer] player ready');
+      // Force loading off if still loading after player is ready
+      setTimeout(() => {
+        setIsLoading((current) => {
+          if (current) {
+            console.log('[VideoPlayer] ready-failsafe: forcing loading off');
+            return false;
+          }
+          return current;
+        });
+      }, 3000);
+    });
 
     return () => {
       clearTimeout(failsafeTimer);
@@ -235,7 +252,27 @@ export function VideoPlayer({
         playerRef.current = null;
       }
     };
-  }, [src, poster, subtitleUrl, autoPlayNext, currentEpisode, totalEpisodes, onNextEpisode]);
+  }, [src, poster, availableSubtitles, autoPlayNext, currentEpisode, totalEpisodes, onNextEpisode]);
+
+  // Handle subtitle language switch
+  const handleSubtitleChange = (language: string) => {
+    const player = playerRef.current;
+    if (!player) return;
+    
+    const tracks = player.textTracks();
+    
+    // Convert TextTrackList to array for iteration
+    const trackArray = Array.from(tracks as unknown as TextTrack[]);
+    
+    trackArray.forEach((track) => {
+      if (track.kind === 'subtitles') {
+        track.mode = track.language === language ? 'showing' : 'disabled';
+      }
+    });
+    
+    setActiveSubtitleLang(language);
+    console.log('[VideoPlayer] Switched to subtitle:', language);
+  };
 
   return (
     <div className={`video-player-container w-full bg-black ${isFullscreen ? 'is-fullscreen' : ''}`}>
@@ -246,30 +283,21 @@ export function VideoPlayer({
             <span className="text-green-400 font-bold text-sm truncate">{title || 'VIDEO_PLAYER.EXE'}</span>
           </div>
           <div className="flex items-center gap-2">
-            {/* Subtitle Toggle Button */}
-            {subtitleUrl && (
-              <button
-                className={`px-2 py-1 text-xs font-bold rounded ${
-                  subtitleEnabled 
-                    ? 'bg-green-600 text-white' 
-                    : 'bg-gray-700 text-gray-400'
-                }`}
-                onClick={() => {
-                  const player = playerRef.current;
-                  if (player) {
-                    const tracks = player.textTracks();
-                    for (let i = 0; i < tracks.length; i++) {
-                      const track = tracks[i];
-                      if (track.kind === 'subtitles') {
-                        track.mode = subtitleEnabled ? 'disabled' : 'showing';
-                      }
-                    }
-                    setSubtitleEnabled(!subtitleEnabled);
-                  }
-                }}
+            {/* Subtitle Language Selector */}
+            {availableSubtitles.length > 0 && (
+              <select
+                value={activeSubtitleLang}
+                onChange={(e) => handleSubtitleChange(e.target.value)}
+                className="px-2 py-1 text-xs font-bold bg-gray-800 text-green-400 border border-green-600 rounded"
+                title="Select Subtitle Language"
               >
-                CC
-              </button>
+                <option value="">CC Off</option>
+                {availableSubtitles.map((sub) => (
+                  <option key={sub.language} value={sub.language}>
+                    {sub.label}
+                  </option>
+                ))}
+              </select>
             )}
             {onClose && (
               <button 
@@ -296,7 +324,7 @@ export function VideoPlayer({
         </div>
       )}
 
-      {/* Video Container - Fixed aspect ratio for mobile */}
+      {/* Video Container */}
       <div className="video-wrapper relative bg-black">
         <div ref={videoRef} className="video-element w-full h-full" />
         
@@ -327,7 +355,7 @@ export function VideoPlayer({
           flex-shrink: 0;
         }
         
-        /* Video wrapper - maintain aspect ratio */
+        /* Video wrapper */
         .video-wrapper {
           position: relative;
           width: 100%;
@@ -336,7 +364,6 @@ export function VideoPlayer({
           aspect-ratio: 16 / 9;
         }
         
-        /* On very small screens, ensure minimum height */
         @media (max-height: 600px) {
           .video-wrapper {
             aspect-ratio: unset;
@@ -361,7 +388,6 @@ export function VideoPlayer({
           padding-top: 0 !important;
         }
         
-        /* Ensure video fills container */
         .video-js video,
         .video-js .vjs-tech {
           width: 100% !important;
@@ -369,7 +395,7 @@ export function VideoPlayer({
           object-fit: contain !important;
         }
         
-        /* Control bar styling */
+        /* Control bar */
         .video-js .vjs-control-bar {
           background: rgba(0, 0, 0, 0.95) !important;
           border-top: 1px solid #22c55e;
@@ -384,7 +410,6 @@ export function VideoPlayer({
           z-index: 100 !important;
         }
         
-        /* Ensure controls never hide */
         .video-js.vjs-user-inactive .vjs-control-bar,
         .video-js.vjs-user-active .vjs-control-bar,
         .video-js.vjs-paused .vjs-control-bar,
@@ -394,7 +419,7 @@ export function VideoPlayer({
           opacity: 1 !important;
         }
         
-        /* Fullscreen styles */
+        /* Fullscreen */
         .video-js.vjs-fullscreen {
           position: fixed !important;
           top: 0 !important;
@@ -404,7 +429,7 @@ export function VideoPlayer({
           z-index: 2147483647 !important;
         }
         
-        /* Big play button centered */
+        /* Big play button */
         .video-js .vjs-big-play-button {
           background: rgba(0, 0, 0, 0.7);
           border: 2px solid #22c55e;
@@ -419,7 +444,7 @@ export function VideoPlayer({
           background: rgba(34, 197, 94, 0.3);
         }
         
-        /* Progress bar colors */
+        /* Progress bar */
         .video-js .vjs-play-progress {
           background: #22c55e !important;
         }
@@ -442,7 +467,7 @@ export function VideoPlayer({
           color: #22c55e;
         }
         
-        /* Subtitle styling for better visibility */
+        /* Subtitle styling */
         .video-js .vjs-text-track-display {
           z-index: 101 !important;
         }
@@ -455,7 +480,7 @@ export function VideoPlayer({
           text-shadow: 1px 1px 2px black !important;
         }
         
-        /* Safari-specific subtitle fixes */
+        /* Safari subtitle fixes */
         video::-webkit-media-text-track-container {
           z-index: 101 !important;
         }
@@ -474,12 +499,12 @@ export function VideoPlayer({
           display: none !important;
         }
         
-        /* Poster image */
+        /* Poster */
         .vjs-poster {
           background-size: contain !important;
         }
         
-        /* Mobile menu button always visible */
+        /* Mobile menu buttons */
         .vjs-subs-caps-button,
         .vjs-playback-rate-menu-button {
           display: flex !important;

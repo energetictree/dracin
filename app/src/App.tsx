@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Terminal, Search, TrendingUp, Clock, Star, X, Minus, Monitor, Cpu, HardDrive, Menu, ArrowLeft, Maximize2, Minimize2, History, Play, Trash2 } from 'lucide-react';
-import { fetchLatestDramas, fetchTrendingDramas, fetchForYouDramas, fetchVIPDramas, searchDramas, getEpisodeVideoUrl, getFirstEpisodeVideoUrl, getEpisodeSubtitleRaw, convertSubtitleToVtt } from '@/services/dramaApiCached';
+import { fetchLatestDramas, fetchTrendingDramas, fetchForYouDramas, fetchVIPDramas, searchDramas, getEpisodeVideoUrl, getFirstEpisodeVideoUrl, getEpisodeSubtitles, convertSubtitleToVtt } from '@/services/dramaApiCached';
+import type { SubtitleTrack } from '@/types/drama';
 import type { Drama, WindowState, ViewMode, VideoData } from '@/types/drama';
 import { DramaCard } from '@/components/DramaCard';
 import { DramaDetail } from '@/components/DramaDetail';
@@ -300,24 +301,36 @@ function App() {
         episodeNum = videoResult?.episodeNum || 1;
       }
       
-      // Load subtitle if available (on-demand conversion)
-      let subtitleVttUrl: string | undefined;
+      // Load subtitles if available (on-demand conversion to VTT)
+      let subtitles: SubtitleTrack[] = [];
       try {
-        addLog(`CHECKING SUBTITLE: Episode ${epNum}...`);
-        const subtitleInfo = await getEpisodeSubtitleRaw(drama.bookId, epNum);
-        if (subtitleInfo) {
-          addLog(`CONVERTING SUBTITLE: English subtitle found...`);
-          const vttUrl = await convertSubtitleToVtt(subtitleInfo.subtitleUrl);
-          if (vttUrl) {
-            subtitleVttUrl = vttUrl;
-            addLog(`SUBTITLE READY: English VTT loaded`);
-          }
+        addLog(`CHECKING SUBTITLES: Episode ${epNum}...`);
+        const subtitleTracks = await getEpisodeSubtitles(drama.bookId, epNum);
+        
+        if (subtitleTracks.length > 0) {
+          addLog(`FOUND ${subtitleTracks.length} SUBTITLE(S): ${subtitleTracks.map(s => s.label).join(', ')}`);
+          
+          // Convert all subtitle URLs to VTT format
+          const convertedSubtitles = await Promise.all(
+            subtitleTracks.map(async (track) => {
+              const vttUrl = await convertSubtitleToVtt(track.url);
+              if (vttUrl) {
+                return { ...track, url: vttUrl };
+              }
+              return null;
+            })
+          );
+          
+          // Filter out failed conversions
+          subtitles = convertedSubtitles.filter((s): s is SubtitleTrack => s !== null);
+          
+          addLog(`SUBTITLES READY: ${subtitles.map(s => s.label).join(', ')}`);
         } else {
-          addLog(`NO SUBTITLE: No English subtitle available`);
+          addLog(`NO SUBTITLES: No subtitles available`);
         }
       } catch (subError) {
         console.error('Subtitle load error:', subError);
-        addLog(`SUBTITLE ERROR: Failed to load subtitle`);
+        addLog(`SUBTITLE ERROR: Failed to load subtitles`);
       }
       
       if (videoResult && videoResult.url) {
@@ -325,9 +338,10 @@ function App() {
           src: videoResult.url,
           poster: drama.coverWap,
           title: `${drama.bookName}${episodeNum ? ` - Episode ${episodeNum}` : ''}`,
-          subtitleUrl: subtitleVttUrl
+          subtitles: subtitles.length > 0 ? subtitles : undefined,
+          subtitleUrl: subtitles.length > 0 ? subtitles[0].url : undefined // Legacy support
         });
-        addLog(`VIDEO LOADED: Quality ${videoResult.quality}${subtitleVttUrl ? ' + Subtitle' : ''}`);
+        addLog(`VIDEO LOADED: Quality ${videoResult.quality}${subtitles.length > 0 ? ` + ${subtitles.length} Subtitle(s)` : ''}`);
       } else {
         addLog('ERROR: Failed to load video - No video URL found');
         // Fallback to sample video for testing
@@ -335,7 +349,8 @@ function App() {
           src: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
           poster: drama.coverWap,
           title: `${drama.bookName}${episodeNum ? ` - Episode ${episodeNum}` : ''} (SAMPLE)`,
-          subtitleUrl: subtitleVttUrl
+          subtitles: subtitles.length > 0 ? subtitles : undefined,
+          subtitleUrl: subtitles.length > 0 ? subtitles[0].url : undefined
         });
       }
     } catch (error) {
@@ -529,7 +544,6 @@ function App() {
                 {/* Window Content */}
                 <MobileWindowContentWrapper
                   window={window}
-                  closeWindow={closeWindow}
                   handleBackFromDetail={handleBackFromDetail}
                   handlePlayVideo={handlePlayVideo}
                   handleDramaClick={handleDramaClick}
@@ -844,8 +858,6 @@ function MobileWindowContent({
             break;
           case 'foryou':
             result = await fetchForYouDramas(1);
-            setForyouPage(1);
-            setForyouHasMore(true);
             break;
           case 'vip':
             result = await fetchVIPDramas();
@@ -1314,7 +1326,8 @@ function WindowContent({
   );
 }
 
-// Mobile For You Content with infinite scroll
+// Mobile For You Content with infinite scroll (currently unused - kept for future use)
+// @ts-expect-error Component is declared but not currently used
 function MobileForYouContent({
   onDramaClick,
 }: {
@@ -1412,7 +1425,6 @@ function MobileForYouContent({
 // Mobile Window Content Wrapper - handles scroll events properly
 function MobileWindowContentWrapper({
   window,
-  closeWindow,
   handleBackFromDetail,
   handlePlayVideo,
   handleDramaClick,
@@ -1422,7 +1434,6 @@ function MobileWindowContentWrapper({
   handleClosePlayer,
 }: {
   window: WindowState;
-  closeWindow: (id: string) => void;
   handleBackFromDetail: () => void;
   handlePlayVideo: (drama: Drama, episodeNum?: number) => void;
   handleDramaClick: (drama: Drama) => void;
@@ -1563,6 +1574,7 @@ function MobileWindowContentWrapper({
                 poster={window.videoData.poster}
                 title={window.videoData.title}
                 subtitleUrl={window.videoData.subtitleUrl}
+                subtitles={window.videoData.subtitles}
                 onClose={handleClosePlayer}
                 currentEpisode={currentEpisodeNum}
                 totalEpisodes={totalEpisodeCount}
