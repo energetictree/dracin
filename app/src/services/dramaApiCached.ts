@@ -451,7 +451,7 @@ export async function getEpisodeVideoUrl(
  * Convert SRT content to VTT format
  * Client-side conversion - no external API needed
  */
-function srtToVtt(srtContent: string): string {
+export function srtToVtt(srtContent: string): string {
   // VTT header
   let vtt = 'WEBVTT\n\n';
   

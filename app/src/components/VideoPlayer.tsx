@@ -15,14 +15,15 @@ interface VideoPlayerProps {
   currentEpisode?: number;
   totalEpisodes?: number;
   onPrevEpisode?: () => void;
-  onNextEpisode?: () => void;
+  onNextEpisode?: (autoPlay?: boolean) => void;
   autoPlayNext?: boolean;
+  autoPlay?: boolean; // Whether to autoplay this video immediately when loaded
 }
 
 export function VideoPlayer({ 
   src, 
   poster, 
-  title, 
+  title: _title, 
   subtitleUrl,
   subtitles,
   onClose, 
@@ -30,7 +31,8 @@ export function VideoPlayer({
   totalEpisodes, 
   onPrevEpisode,
   onNextEpisode,
-  autoPlayNext = true
+  autoPlayNext = true,
+  autoPlay = false
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<ReturnType<typeof videojs> | null>(null);
@@ -43,8 +45,19 @@ export function VideoPlayer({
   const [autoNextEnabled, setAutoNextEnabled] = useState(prefs.autoNextEnabled);
   const [autoPlayEnabled, setAutoPlayEnabled] = useState(prefs.autoPlayEnabled);
   
-  // Ref to track if we should autoplay on next source change (for Auto Play feature)
-  const shouldAutoPlayRef = useRef(false);
+  // Track if we've already triggered autoplay for this video
+  const hasAutoPlayedRef = useRef(false);
+  // Track if we actually started playing (separate from just setting up the handler)
+  const didPlayRef = useRef(false);
+  
+  // Reset refs when autoPlay changes from false to true
+  // This ensures autoplay works when navigating to next episode
+  useEffect(() => {
+    if (autoPlay) {
+      hasAutoPlayedRef.current = false;
+      didPlayRef.current = false;
+    }
+  }, [autoPlay]);
 
   // Use subtitles array if provided, otherwise fall back to single subtitleUrl
   // Memoized to prevent unnecessary re-renders
@@ -164,9 +177,8 @@ export function VideoPlayer({
       
       if (hasNextEpisode) {
         if (autoPlayEnabled) {
-          // Auto Play: Exit fullscreen, set flag, then load next episode
-          console.log('[VideoPlayer] Auto Play: Exiting fullscreen and loading next episode');
-          shouldAutoPlayRef.current = true;
+          // Auto Play: Exit fullscreen, then load next episode with autoplay flag
+          console.log('[VideoPlayer] Auto Play: Exiting fullscreen and loading next episode with autoplay');
           
           // Exit fullscreen first to avoid glitches during transition
           if (player.isFullscreen()) {
@@ -175,7 +187,7 @@ export function VideoPlayer({
           
           // Small delay to ensure fullscreen exit completes before loading next
           setTimeout(() => {
-            onNextEpisode();
+            onNextEpisode(true); // Pass true to enable autoplay for next episode
           }, 300);
         } else if (autoNextEnabled) {
           // Auto Next: Go to next episode but don't autoplay (exit fullscreen, user clicks play)
@@ -183,36 +195,42 @@ export function VideoPlayer({
           if (player.isFullscreen()) {
             player.exitFullscreen();
           }
-          onNextEpisode();
+          onNextEpisode(false); // Pass false to not autoplay
         }
       }
     });
     
-    // Handle autoplay on load if shouldAutoPlay flag is set
-    if (shouldAutoPlayRef.current) {
-      shouldAutoPlayRef.current = false; // Reset the flag
-      
-      console.log('[VideoPlayer] Auto Play: Setting up autoplay');
+    // Handle autoplay on load if autoPlay prop is true
+    if (autoPlay && !hasAutoPlayedRef.current) {
+      hasAutoPlayedRef.current = true; // Mark that we've set up the autoplay handler
       
       // Wait for video to be ready to play
       const handleCanPlay = () => {
-        console.log('[VideoPlayer] Auto Play: Video ready, entering fullscreen and playing');
+        // Prevent double-playing
+        if (didPlayRef.current) return;
+        didPlayRef.current = true;
         
         // First enter fullscreen, then play
         const enterFullscreenAndPlay = () => {
-          player.requestFullscreen().then(() => {
+          const currentPlayer = playerRef.current;
+          if (!currentPlayer) return;
+          
+          currentPlayer.requestFullscreen().then(() => {
             // Play after entering fullscreen
             setTimeout(() => {
-              const playPromise = player.play();
-              if (playPromise) {
-                playPromise.catch((err) => {
+              const p = playerRef.current as ReturnType<typeof videojs> | null;
+              if (p) {
+                (p.play() as Promise<void>).catch((err) => {
                   console.log('[VideoPlayer] Auto Play: Autoplay prevented by browser:', err);
                 });
               }
             }, 300);
           }).catch(() => {
-            console.log('[VideoPlayer] Auto Play: Could not enter fullscreen, playing anyway');
-            player.play().catch(() => {});
+            // Check ref inside async callback
+            const p = playerRef.current as ReturnType<typeof videojs> | null;
+            if (p) {
+              (p.play() as Promise<void>).catch(() => {});
+            }
           });
         };
         
@@ -224,10 +242,10 @@ export function VideoPlayer({
       
       // Fallback: if canplay already fired or takes too long, try after a delay
       setTimeout(() => {
-        if (player.readyState() >= 2) { // HAVE_CURRENT_DATA or better
+        if (player.readyState() >= 2 && !didPlayRef.current) {
           handleCanPlay();
         }
-      }, 1500);
+      }, 2000);
     }
 
     // Handle fullscreen change
@@ -282,7 +300,8 @@ export function VideoPlayer({
           
           if (track) {
             // Set track mode for Video.js TextTrack object
-            const textTrack = track.track;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const textTrack = (track as any).track as TextTrack | undefined;
             if (textTrack) {
               textTrack.mode = isDefault ? 'showing' : 'disabled';
             }
@@ -339,7 +358,7 @@ export function VideoPlayer({
         playerRef.current = null;
       }
     };
-  }, [src, poster, subtitles, subtitleUrl, autoNextEnabled, autoPlayEnabled, autoPlayNext, currentEpisode, totalEpisodes, onNextEpisode, onPrevEpisode]);
+  }, [src, poster, subtitles, subtitleUrl, autoNextEnabled, autoPlayEnabled, autoPlayNext, currentEpisode, totalEpisodes, onNextEpisode, onPrevEpisode, autoPlay]);
 
   // Handle subtitle language switch
   const handleSubtitleChange = (language: string) => {
@@ -490,7 +509,7 @@ export function VideoPlayer({
             {/* Next Episode Button */}
             {onNextEpisode && (
               <button
-                onClick={onNextEpisode}
+                onClick={() => onNextEpisode(false)}
                 disabled={currentEpisode >= totalEpisodes}
                 className={`flex items-center justify-center gap-2 px-4 py-2 rounded font-bold transition-colors ${
                   currentEpisode >= totalEpisodes

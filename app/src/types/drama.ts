@@ -143,4 +143,5 @@ export interface VideoData {
   title?: string;
   subtitleUrl?: string; // Legacy single subtitle support
   subtitles?: SubtitleTrack[]; // New multi-subtitle support
+  autoPlay?: boolean; // Whether to autoplay the video when loaded
 }

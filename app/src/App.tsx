@@ -268,7 +268,7 @@ function App() {
     openWindow('detail', drama.bookName.toUpperCase(), drama);
   }, [openWindow, isMobile, windows]);
 
-  const handlePlayVideo = useCallback(async (drama: Drama, episodeNum?: number) => {
+  const handlePlayVideo = useCallback(async (drama: Drama, episodeNum?: number, autoPlay: boolean = false) => {
     const epNum = episodeNum || 1;
     addLog(`LOADING VIDEO: ${drama.bookName} Episode ${epNum}...`);
     
@@ -342,7 +342,8 @@ function App() {
           poster: drama.coverWap,
           title: `${drama.bookName}${episodeNum ? ` - Episode ${episodeNum}` : ''}`,
           subtitles: subtitles.length > 0 ? subtitles : undefined,
-          subtitleUrl: subtitles.length > 0 ? subtitles[0].url : undefined // Legacy support
+          subtitleUrl: subtitles.length > 0 ? subtitles[0].url : undefined, // Legacy support
+          autoPlay: autoPlay
         });
         addLog(`VIDEO LOADED: Quality ${videoResult.quality}${subtitles.length > 0 ? ` + ${subtitles.length} Subtitle(s)` : ''}`);
       } else {
@@ -353,7 +354,8 @@ function App() {
           poster: drama.coverWap,
           title: `${drama.bookName}${episodeNum ? ` - Episode ${episodeNum}` : ''} (SAMPLE)`,
           subtitles: subtitles.length > 0 ? subtitles : undefined,
-          subtitleUrl: subtitles.length > 0 ? subtitles[0].url : undefined
+          subtitleUrl: subtitles.length > 0 ? subtitles[0].url : undefined,
+          autoPlay: autoPlay
         });
       }
     } catch (error) {
@@ -362,17 +364,17 @@ function App() {
     }
   }, [openWindow, addLog]);
 
-  const handleNextEpisode = useCallback(() => {
+  const handleNextEpisode = useCallback((autoPlay: boolean = false) => {
     if (playerReturnDrama && currentEpisodeNum < totalEpisodeCount) {
       const nextEp = currentEpisodeNum + 1;
-      handlePlayVideo(playerReturnDrama, nextEp);
+      handlePlayVideo(playerReturnDrama, nextEp, autoPlay);
     }
   }, [playerReturnDrama, currentEpisodeNum, totalEpisodeCount, handlePlayVideo]);
 
   const handlePrevEpisode = useCallback(() => {
     if (playerReturnDrama && currentEpisodeNum > 1) {
       const prevEp = currentEpisodeNum - 1;
-      handlePlayVideo(playerReturnDrama, prevEp);
+      handlePlayVideo(playerReturnDrama, prevEp, false);
     }
   }, [playerReturnDrama, currentEpisodeNum, handlePlayVideo]);
 
@@ -687,6 +689,7 @@ function App() {
                     onPrevEpisode={handlePrevEpisode}
                     onNextEpisode={handleNextEpisode}
                     autoPlayNext={true}
+                    autoPlay={window.videoData.autoPlay}
                   />
                 ) : window.mode === 'detail' && window.data && typeof window.data !== 'string' ? (
                   <DramaDetail 
@@ -1453,7 +1456,7 @@ function MobileWindowContentWrapper({
   currentEpisodeNum: number;
   totalEpisodeCount: number;
   handlePrevEpisode: () => void;
-  handleNextEpisode: () => void;
+  handleNextEpisode: (autoPlay?: boolean) => void;
   handleClosePlayer: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1595,6 +1598,7 @@ function MobileWindowContentWrapper({
                 onPrevEpisode={handlePrevEpisode}
                 onNextEpisode={handleNextEpisode}
                 autoPlayNext={true}
+                autoPlay={window.videoData.autoPlay}
               />
             </div>
           );
