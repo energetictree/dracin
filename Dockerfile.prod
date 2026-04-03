@@ -1,0 +1,27 @@
+# Production Dockerfile for Dracin App
+# Uses volume mounts for source code instead of COPY
+
+FROM node:20-alpine
+
+# Install dependencies for native modules
+RUN apk add --no-cache git
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files for dependency installation
+COPY package*.json ./
+
+# Install ALL dependencies (including devDependencies needed for build)
+RUN npm install --legacy-peer-deps
+
+# Build the app (source code will be mounted via volume)
+# Note: The actual build happens at runtime when the container starts
+# because the source code is mounted as a volume
+
+# Expose Vite preview port
+EXPOSE 4173
+
+# Default command - build and serve
+# This expects the source code to be mounted at /app
+CMD ["sh", "-c", "npm run build && npm run preview -- --host 0.0.0.0"]

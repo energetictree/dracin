@@ -1,0 +1,107 @@
+name: dracin
+
+services:
+  # API Proxy with shared cache (1 day TTL)
+  dracin-proxy:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    container_name: dracin-proxy
+    restart: unless-stopped
+    ports:
+      - "3002:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      # Domain Configuration
+      - DOMAIN=${DOMAIN:-localhost}
+      - PUBLIC_URL=${PUBLIC_URL:-http://localhost:3001}
+      # Primary API (Main API Document)
+      - PRIMARY_API_URL=${PRIMARY_API_URL:-https://api.primary.url}
+      # Backup API (Secondary/Failover)
+      - BACKUP_API_URL=${BACKUP_API_URL:-https://api.backup.url}
+      # Access Password (Login password for Dracin app)
+      - ACCESS_PASSWORD=${ACCESS_PASSWORD:-dracin123}
+      # Service Description
+      - DESCRIPTION=${DESCRIPTION:-Dracin API Proxy with Primary/Backup failover}
+    volumes:
+      # Persist cache data
+      - proxy_cache:/app/cache
+    networks:
+      - dracin-network
+      - dramabox-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "description=Dracin API Proxy - Drama streaming with Primary/Backup API failover"
+      - "service=dracin-proxy"
+
+  dracin-app:
+    build:
+      context: ./app
+      dockerfile: ../Dockerfile
+    container_name: dracin-app
+    restart: unless-stopped
+    ports:
+      - "5173:5173"  # Vite dev server port
+    volumes:
+      # Mount source code for hot reload during development
+      - ./app:/app
+      # Use named volume for node_modules to persist dependencies
+      - node_modules:/app/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true  # Enable polling for file changes in Docker
+      - VITE_API_PROXY_URL=http://dracin-proxy:3001  # Proxy URL (vite rewrite adds /api)
+      - VITE_ACCESS_PASSWORD=${ACCESS_PASSWORD:-dracin123}
+    working_dir: /app
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    stdin_open: true
+    tty: true
+    networks:
+      - dracin-network
+    depends_on:
+      - dracin-proxy
+
+  # Production service (optional - builds and serves the app)
+  dracin-app-prod:
+    build:
+      context: ./app
+      dockerfile: ../Dockerfile.prod
+    container_name: dracin-app-prod
+    restart: unless-stopped
+    ports:
+      - "4173:4173"  # Vite preview port
+    volumes:
+      # Mount source code to build
+      - ./app:/app
+      # Separate node_modules for production
+      - node_modules_prod:/app/node_modules
+    environment:
+      - NODE_ENV=production
+      - VITE_API_PROXY_URL=http://dracin-proxy:3001  # vite rewrite adds /api
+      - VITE_ACCESS_PASSWORD=${ACCESS_PASSWORD:-dracin123}
+    working_dir: /app
+    command: ["sh", "-c", "npm ci && npm run build && npm run preview -- --host 0.0.0.0"]
+    networks:
+      - dracin-network
+    depends_on:
+      - dracin-proxy
+    profiles:
+      - prod  # Only starts when explicitly requested: docker compose --profile prod up
+
+volumes:
+  node_modules:
+  node_modules_prod:
+  proxy_cache:
+
+networks:
+  dracin-network:
+    driver: bridge
+  # External network for connecting to dramabox-api backup service
+  dramabox-network:
+    external: true
+    name: dramabox_default
