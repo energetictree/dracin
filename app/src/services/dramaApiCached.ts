@@ -597,10 +597,16 @@ export async function getEpisodeSubtitles(
     );
 
     if (indonesianSub?.url) {
+      // Normalize label to 'Indonesian' if API returns 'Indonesia' or similar
+      const label = indonesianSub.captionLanguageName;
+      const normalizedLabel = label && label.toLowerCase().includes('indonesia') 
+        ? 'Indonesian' 
+        : (label || 'Indonesian');
+      
       subtitles.push({
         url: indonesianSub.url,
         language: 'in',
-        label: indonesianSub.captionLanguageName || 'Indonesia',
+        label: normalizedLabel,
         isDefault: false
       });
     }
