@@ -77,7 +77,7 @@ export function DramaDetail({ drama, isMobile = false, onBack, onPlayVideo, defa
     return (
       <div className="flex flex-col items-center justify-center h-full text-green-400 p-8">
         <div className="loading-dots text-4xl mb-4" />
-        <p>LOADING_DETAIL_DATA...</p>
+        <p>LOADING DETAIL DATA...</p>
       </div>
     );
   }
