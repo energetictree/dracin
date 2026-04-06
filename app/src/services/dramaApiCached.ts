@@ -26,6 +26,107 @@ export type { EpisodeData, VideoQuality };
 // Local cache TTL: 1 day (24 hours)
 const LOCAL_CACHE_TTL = 24 * 60 * 60 * 1000;
 
+// Statistics tracking
+export interface ApiCallStat {
+  endpoint: string;  // e.g., '/latest', '/trending', '/allepisode'
+  source: 'local-cache' | 'server-cache' | 'live-api';
+  timestamp: number;
+}
+
+export interface ApiStats {
+  totalCalls: number;
+  byEndpoint: Record<string, {
+    total: number;
+    localCache: number;
+    serverCache: number;
+    liveApi: number;
+  }>;
+  history: ApiCallStat[]; // Last 100 calls
+}
+
+const STATS_KEY = 'dracin_api_stats';
+const MAX_HISTORY = 100;
+
+/**
+ * Get API statistics from localStorage
+ */
+export function getApiStats(): ApiStats {
+  try {
+    const stored = localStorage.getItem(STATS_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {
+    // Ignore
+  }
+  return { totalCalls: 0, byEndpoint: {}, history: [] };
+}
+
+/**
+ * Clear API statistics
+ */
+export function clearApiStats(): void {
+  try {
+    localStorage.removeItem(STATS_KEY);
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * Record an API call statistic
+ */
+function recordApiCall(endpoint: string, source: 'local-cache' | 'server-cache' | 'live-api'): void {
+  try {
+    const stats = getApiStats();
+    
+    // Update total
+    stats.totalCalls++;
+    
+    // Update by endpoint
+    if (!stats.byEndpoint[endpoint]) {
+      stats.byEndpoint[endpoint] = {
+        total: 0,
+        localCache: 0,
+        serverCache: 0,
+        liveApi: 0
+      };
+    }
+    stats.byEndpoint[endpoint].total++;
+    stats.byEndpoint[endpoint][source === 'local-cache' ? 'localCache' : source === 'server-cache' ? 'serverCache' : 'liveApi']++;
+    
+    // Add to history
+    stats.history.push({
+      endpoint,
+      source,
+      timestamp: Date.now()
+    });
+    
+    // Keep only last MAX_HISTORY entries
+    if (stats.history.length > MAX_HISTORY) {
+      stats.history = stats.history.slice(-MAX_HISTORY);
+    }
+    
+    localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+  } catch {
+    // Ignore errors (e.g., localStorage disabled)
+  }
+}
+
+/**
+ * Extract endpoint name from URL for statistics
+ * e.g., "/api-proxy/latest" -> "/latest"
+ * e.g., "/api-proxy/allepisode?bookId=123" -> "/allepisode"
+ */
+function extractEndpoint(url: string): string {
+  // Remove base URL
+  let endpoint = url.replace(BASE_URL, '').replace(DIRECT_API_URL, '');
+  // Remove query string
+  endpoint = endpoint.split('?')[0];
+  // Return endpoint or 'unknown'
+  return endpoint || '/unknown';
+}
+
 /**
  * Generate cache key from URL
  */
@@ -87,6 +188,7 @@ export async function clearServerCache(): Promise<{ success: boolean; message: s
 n */
 async function fetchWithTwoTierCache<T>(url: string, forceRefresh = false): Promise<T> {
   const cacheKey = generateCacheKey(url);
+  const endpoint = extractEndpoint(url);
   
   // TIER 1: Check local cache (unless force refresh)
   if (!forceRefresh) {
@@ -94,6 +196,7 @@ async function fetchWithTwoTierCache<T>(url: string, forceRefresh = false): Prom
       const cached = await cacheDB.get<T>(cacheKey);
       if (cached !== null) {
         console.log(`[Cache:L1-HIT] ${cacheKey}`);
+        recordApiCall(endpoint, 'local-cache');
         return cached;
       }
     } catch (error) {
@@ -119,6 +222,11 @@ async function fetchWithTwoTierCache<T>(url: string, forceRefresh = false): Prom
     
     const data = await response.json();
     
+    // Check X-Cache header to determine if it was server cache or live API
+    const cacheHeader = response.headers.get('X-Cache');
+    const source: 'server-cache' | 'live-api' = cacheHeader === 'HIT' ? 'server-cache' : 'live-api';
+    recordApiCall(endpoint, source);
+    
     // Store in local cache (Tier 1)
     try {
       await cacheDB.set(cacheKey, data, LOCAL_CACHE_TTL);
@@ -141,6 +249,8 @@ async function fetchWithTwoTierCache<T>(url: string, forceRefresh = false): Prom
         throw new Error(`Direct API error: ${response.status}`);
       }
       const data = await response.json();
+      
+      recordApiCall(endpoint, 'live-api');
       
       // Cache locally even in fallback
       try {

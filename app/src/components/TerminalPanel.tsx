@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Terminal, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
 import { clearSession } from '@/config/auth';
 import { clearHistory as clearWatchHistory, getWatchHistory } from '@/lib/history';
-import { clearClientCache, clearServerCache } from '@/services/dramaApiCached';
+import { clearClientCache, clearServerCache, getApiStats, clearApiStats } from '@/services/dramaApiCached';
 
 interface TerminalPanelProps {
   output: string[];
@@ -66,6 +66,8 @@ export function TerminalPanel({ output, isMobile = false, forceExpanded, onClose
           '  clearcache -s        | Clear server-side cache',
           '  clearcache -l        | Clear local cache',
           '  clearhist            | Clear watch history (keeps cache)',
+          '  clearstats           | Clear API call statistics',
+          '  apistats             | Show API call statistics',
           '  latest               | Open latest dramas window',
           '  trending             | Open trending dramas window',
           '  foryou               | Open for you window',
@@ -130,14 +132,63 @@ export function TerminalPanel({ output, isMobile = false, forceExpanded, onClose
           '  Server Cache: NodeCache (dracin-proxy)',
           '  Cache TTL: 3 hours'
         ]);
+      } else if (cmd === 'apistats') {
+        const stats = getApiStats();
+        const lines = [
+          'API CALL STATISTICS:',
+          `  Total Calls: ${stats.totalCalls}`,
+          ''
+        ];
+        
+        if (Object.keys(stats.byEndpoint).length === 0) {
+          lines.push('  No API calls recorded yet.');
+        } else {
+          lines.push('  BY ENDPOINT:');
+          Object.entries(stats.byEndpoint)
+            .sort((a, b) => b[1].total - a[1].total)
+            .forEach(([endpoint, data]) => {
+              lines.push(`    ${endpoint}`);
+              lines.push(`      Total: ${data.total} calls`);
+              lines.push(`      📦 Local Cache:  ${data.localCache}`);
+              lines.push(`      🖥️  Server Cache: ${data.serverCache}`);
+              lines.push(`      🌐 Live API:     ${data.liveApi}`);
+            });
+        }
+        
+        lines.push('');
+        lines.push('  Recent Calls (last 10):');
+        if (stats.history.length === 0) {
+          lines.push('    No recent calls');
+        } else {
+          stats.history
+            .slice(-10)
+            .reverse()
+            .forEach((call) => {
+              const time = new Date(call.timestamp).toLocaleTimeString();
+              const icon = call.source === 'local-cache' ? '📦' : call.source === 'server-cache' ? '🖥️' : '🌐';
+              lines.push(`    ${time} ${icon} ${call.endpoint} (${call.source})`);
+            });
+        }
+        
+        setHistory(prev => [...prev, ...lines]);
+      } else if (cmd === 'clearstats') {
+        clearApiStats();
+        setHistory(prev => [...prev, '[OK] API call statistics cleared']);
       } else if (cmd === 'about') {
+        const stats = getApiStats();
         setHistory(prev => [...prev,
           'DRACIN TERMINAL v1.0.0',
           'Build: 2026.02.03',
           'Author: Eligible Enterprise',
           'License: MIT',
           '',
-          'Powered by Sansekai API'
+          'Powered by Sansekai API',
+          '',
+          'API STATISTICS:',
+          `  Total Calls: ${stats.totalCalls}`,
+          `  Unique Endpoints: ${Object.keys(stats.byEndpoint).length}`,
+          '',
+          "Type 'apistats' for detailed statistics"
         ]);
       } else if (['latest', 'trending', 'foryou', 'vip'].includes(cmd)) {
         setHistory(prev => [...prev, `Executing: OPEN_${cmd.toUpperCase()}.EXE...`]);
