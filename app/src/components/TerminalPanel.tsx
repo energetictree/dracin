@@ -182,7 +182,7 @@ export function TerminalPanel({ output, isMobile = false, forceExpanded, onClose
           'Author: Eligible Enterprise',
           'License: MIT',
           '',
-          'Powered by Sansekai API',
+          'Powered by Dracin API',
           '',
           'API STATISTICS:',
           `  Total Calls: ${stats.totalCalls}`,
